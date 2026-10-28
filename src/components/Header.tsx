@@ -180,13 +180,22 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 w-full z-50 transition-colors duration-200 ${
+        className={`fixed top-0 left-0 right-0 w-full z-50 transition-colors duration-200 overflow-hidden ${
           isScrolled || isMobileMenuOpen || isMobileSearchOpen
             ? 'bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs'
             : 'bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-2xs'
         }`}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+        {/* Decorative Herbs Image (Right side, Desktop only) */}
+        <div className="hidden lg:block absolute right-0 top-0 bottom-0 h-full w-full lg:w-1/3 pointer-events-none overflow-hidden select-none">
+          <img
+            src="/footer-herbs-clean.png"
+            alt="Fresh aromatic herbs"
+            className="absolute right-0 top-1/2 -translate-y-1/2 h-full w-auto max-w-none object-contain object-right opacity-60"
+          />
+        </div>
+
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 relative z-10">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-3 lg:gap-6 w-full min-w-0">
             {/* 1. Logo & Mobile Hamburger */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink-0">
@@ -221,9 +230,9 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label="Varam Foods Home"
               >
                 <img
-                  src="/varam-logo.png"
+                  src="/varam-footer-banner.jpg"
                   alt="Varam Foods"
-                  className="h-7 sm:h-8.5 w-auto object-contain group-hover:scale-105 transition-transform duration-200 drop-shadow-xs"
+                  className="h-10 sm:h-12 w-auto object-contain group-hover:scale-105 transition-transform duration-200 drop-shadow-xs"
                 />
               </button>
             </div>
