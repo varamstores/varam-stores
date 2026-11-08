@@ -23,10 +23,19 @@ export const Link000: React.FC<SkiperLinkProps> = ({
   title,
   rel,
 }) => {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (href === "#" || !href) {
+      e.preventDefault();
+    }
+    if (onClick) {
+      onClick(e);
+    }
+  };
+
   return (
     <a
       href={href}
-      onClick={onClick}
+      onClick={handleClick}
       target={target}
       title={title}
       rel={rel}
@@ -55,10 +64,19 @@ export const Link001: React.FC<SkiperLinkProps> = ({
   title,
   rel,
 }) => {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (href === "#" || !href) {
+      e.preventDefault();
+    }
+    if (onClick) {
+      onClick(e);
+    }
+  };
+
   return (
     <a
       href={href}
-      onClick={onClick}
+      onClick={handleClick}
       target={target}
       title={title}
       rel={rel}

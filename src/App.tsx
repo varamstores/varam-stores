@@ -40,6 +40,7 @@ import { WishlistPage } from './components/WishlistPage';
 import { UserAccountPage } from './components/UserAccountPage';
 import { OurStoryPage } from './components/OurStoryPage';
 import { AdminPortalPage } from './components/AdminPortalPage';
+import { CheckoutPage } from './components/CheckoutPage';
 
 import { useGsapScroll } from './hooks/useGsapScroll';
 import type { Product } from './types';
@@ -54,6 +55,7 @@ export const AppContent: React.FC = () => {
     goToShop,
     goToProduct,
     goToAccount,
+    goToCheckout,
   } = useNavigation();
 
   const [selectedPostalCode, setSelectedPostalCode] = useState('Hatfield, AL10');
@@ -200,6 +202,16 @@ export const AppContent: React.FC = () => {
               <AdminPortalPage />
             </PageTransition>
           )}
+
+          {/* VIEW H: COMPREHENSIVE FULL CHECKOUT PAGE */}
+          {currentView === 'checkout' && (
+            <PageTransition key="checkout">
+              <CheckoutPage
+                postalCode={selectedPostalCode}
+                onSelectPostalCode={setSelectedPostalCode}
+              />
+            </PageTransition>
+          )}
         </AnimatePresence>
       </main>
 
@@ -210,11 +222,11 @@ export const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Sticky Mobile Bottom Navigation Bar (Hidden in Admin Portal Workspace) */}
-      {!isAdmin && <MobileBottomNav />}
+      {/* 5. Sticky Mobile Bottom Navigation Bar (Hidden in Admin Portal & Checkout) */}
+      {!isAdmin && currentView !== 'checkout' && <MobileBottomNav />}
 
       {/* 6. Global Modals & Drawers */}
-      <CartDrawer onCheckout={() => setIsCheckoutModalOpen(true)} />
+      <CartDrawer onCheckout={() => goToCheckout()} />
 
       <LocationModal
         isOpen={isLocationModalOpen}

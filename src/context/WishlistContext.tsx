@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { soundEffects } from '../utils/soundEffects';
 
 interface WishlistContextType {
   wishlistIds: string[];
@@ -32,14 +33,15 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [wishlistIds]);
 
   const toggleWishlist = (productId: string) => {
+    const isAdding = !wishlistIds.includes(productId);
+    soundEffects.playWishlist(isAdding);
     setWishlistIds((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
+      isAdding ? [...prev, productId] : prev.filter((id) => id !== productId)
     );
   };
 
   const clearWishlist = () => {
+    soundEffects.playRemoveFromCart();
     setWishlistIds([]);
   };
 

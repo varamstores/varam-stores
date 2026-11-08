@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type PageView = 'home' | 'shop' | 'product' | 'wishlist' | 'account' | 'story' | 'admin';
+export type PageView = 'home' | 'shop' | 'product' | 'wishlist' | 'account' | 'story' | 'admin' | 'checkout';
 
 interface NavigationContextType {
   currentView: PageView;
@@ -25,6 +25,7 @@ interface NavigationContextType {
   goToAccount: () => void;
   goToStory: () => void;
   goToAdmin: () => void;
+  goToCheckout: () => void;
   scrollToSection: (sectionId: string) => void;
   setSelectedCategory: (cat: string) => void;
   setSearchQuery: (q: string) => void;
@@ -60,6 +61,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       initialView = 'shop';
     } else if (pageParam === 'wishlist' || path === 'wishlist') {
       initialView = 'wishlist';
+    } else if (pageParam === 'checkout' || path === 'checkout') {
+      initialView = 'checkout';
     } else if (pageParam === 'story' || path === 'story' || pageParam === 'our-story' || path === 'our-story') {
       initialView = 'story';
     } else if (pageParam === 'admin' || path === 'admin') {
@@ -240,6 +243,13 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     scrollToTopImmediate();
   };
 
+  const goToCheckout = () => {
+    setCurrentView('checkout');
+    setSelectedProductId(null);
+    updateUrl('checkout');
+    scrollToTopImmediate();
+  };
+
   const resetFilters = () => {
     setSelectedCategory('all');
     setSearchQuery('');
@@ -269,6 +279,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         goToAccount,
         goToStory,
         goToAdmin,
+        goToCheckout,
         scrollToSection,
         setSelectedCategory: (cat) => {
           setSelectedCategory(cat);

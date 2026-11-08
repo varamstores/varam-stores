@@ -3,6 +3,7 @@ import { X, CheckCircle2, ShieldCheck, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { AnimatedModal } from './transitions/AnimatedModal';
+import { soundEffects } from '../utils/soundEffects';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
+    soundEffects.playOrderSuccess();
     setOrderRef(`FM-${Math.floor(10000 + Math.random() * 90000)}`);
     setIsSubmitted(true);
     setTimeout(() => {

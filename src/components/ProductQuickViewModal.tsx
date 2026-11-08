@@ -4,6 +4,7 @@ import type { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { AnimatedModal } from './transitions/AnimatedModal';
+import { soundEffects } from '../utils/soundEffects';
 
 interface ProductQuickViewModalProps {
   product: Product | null;
@@ -122,7 +123,12 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                 <div className="flex items-center bg-stone-50 rounded-xl border border-stone-200 p-1">
                   <button
                     type="button"
-                    onClick={() => setQty(Math.max(1, qty - 1))}
+                    onClick={() => {
+                      if (qty > 1) {
+                        setQty(qty - 1);
+                        soundEffects.playQuantityChange(false);
+                      }
+                    }}
                     className="w-8 h-8 rounded-lg bg-white text-[#18181B] flex items-center justify-center hover:bg-stone-100 transition-colors shadow-2xs cursor-pointer active:scale-90"
                     aria-label="Decrease quantity"
                   >
@@ -133,7 +139,10 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setQty(qty + 1)}
+                    onClick={() => {
+                      setQty(qty + 1);
+                      soundEffects.playQuantityChange(true);
+                    }}
                     className="w-8 h-8 rounded-lg bg-[#18181B] text-[#F5D103] flex items-center justify-center hover:bg-stone-800 transition-colors shadow-2xs cursor-pointer active:scale-90"
                     aria-label="Increase quantity"
                   >

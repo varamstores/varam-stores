@@ -4,6 +4,7 @@ import type { Product } from '../types';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNavigation } from '../context/NavigationContext';
+import { soundEffects } from '../utils/soundEffects';
 
 interface ProductCardProps {
   product: Product;
@@ -94,6 +95,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              soundEffects.playTap();
               onQuickView(product);
             }}
             className="absolute inset-x-3 bottom-2.5 bg-white/95 backdrop-blur-xs text-[#18181B] text-xs font-bold py-2 rounded-xl shadow-md border border-stone-200/80 opacity-0 translate-y-2 group-hover/img:opacity-100 group-hover/img:translate-y-0 transition-all duration-200 flex items-center justify-center gap-1.5 hover:bg-[#F5D103] hover:text-[#18181B] hover:text-white cursor-pointer z-10"

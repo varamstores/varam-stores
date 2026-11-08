@@ -24,6 +24,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNavigation } from '../context/NavigationContext';
 import type { Product } from '../types';
+import { soundEffects } from '../utils/soundEffects';
 
 interface ProductDetailPageProps {
   productId: string | null;
@@ -321,7 +322,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               <div className="flex items-center justify-between bg-white rounded-2xl border border-stone-300 p-1.5 shadow-2xs sm:w-36">
                 <button
                   type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  onClick={() => {
+                    if (quantity > 1) {
+                      setQuantity(quantity - 1);
+                      soundEffects.playQuantityChange(false);
+                    }
+                  }}
                   className="w-9 h-9 rounded-xl bg-stone-100 hover:bg-stone-200 text-[#18181B] flex items-center justify-center font-bold transition-colors cursor-pointer"
                   aria-label="Decrease quantity"
                 >
@@ -332,7 +338,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setQuantity(quantity + 1)}
+                  onClick={() => {
+                    setQuantity(quantity + 1);
+                    soundEffects.playQuantityChange(true);
+                  }}
                   className="w-9 h-9 rounded-xl bg-[#F5D103] hover:bg-[#E5A800] text-[#18181B] flex items-center justify-center font-bold transition-colors cursor-pointer"
                   aria-label="Increase quantity"
                 >

@@ -13,10 +13,13 @@ import {
   Store,
   Info,
   Award,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useNavigation } from '../context/NavigationContext';
+import { useSoundEffects } from '../hooks/useSoundEffects';
 import { products } from '../data/products';
 import { allBrands, type BrandItem } from '../data/brands';
 import { BrandsMegaMenu } from './BrandsMegaMenu';
@@ -24,7 +27,6 @@ import { ShopMegaMenu } from './ShopMegaMenu';
 import { motion, AnimatePresence } from 'framer-motion';
 import { dropdownVariants, badgePopVariants } from '../motion/variants';
 import type { Product } from '../types';
-import { Link000 } from './ui/skiper40';
 
 interface HeaderProps {
   onOpenLocationModal: () => void;
@@ -41,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { totalItems, total, setIsCartOpen } = useCart();
   const { wishlistCount } = useWishlist();
+  const { isMuted, toggleSound } = useSoundEffects();
   const { currentView, filterOnSale, goToHome, goToShop, goToWishlist, goToAccount, goToStory } = useNavigation();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -132,6 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
       label: 'Home',
       action: () => {
         setIsBrandsMenuOpen(false);
+        setIsShopMenuOpen(false);
         goToHome();
       },
       icon: Store,
@@ -140,17 +144,19 @@ export const Header: React.FC<HeaderProps> = ({
     {
       label: 'Shop',
       action: () => {
-        setIsShopMenuOpen((prev) => !prev);
         setIsBrandsMenuOpen(false);
+        setIsShopMenuOpen(false);
+        goToShop({ category: 'all' });
       },
       icon: Store,
-      active: currentView === 'shop' || isShopMenuOpen,
+      active: currentView === 'shop',
       isDropdown: true,
     },
     {
       label: 'Deals',
       action: () => {
         setIsBrandsMenuOpen(false);
+        setIsShopMenuOpen(false);
         goToShop({ category: 'all', filterOnSale: true, search: '' });
       },
       icon: Tag,
@@ -159,7 +165,10 @@ export const Header: React.FC<HeaderProps> = ({
     },
     {
       label: 'Brands',
-      action: () => setIsBrandsMenuOpen((prev) => !prev),
+      action: () => {
+        setIsShopMenuOpen(false);
+        setIsBrandsMenuOpen((prev) => !prev);
+      },
       icon: Award,
       badge: '90+',
       isDropdown: true,
@@ -169,6 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
       label: 'Our Story',
       action: () => {
         setIsBrandsMenuOpen(false);
+        setIsShopMenuOpen(false);
         setIsMobileMenuOpen(false);
         goToStory();
       },
@@ -180,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 w-full z-50 transition-colors duration-200 overflow-hidden ${
+        className={`fixed top-0 left-0 right-0 w-full z-50 transition-colors duration-200 ${
           isScrolled || isMobileMenuOpen || isMobileSearchOpen
             ? 'bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs'
             : 'bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-2xs'
@@ -274,15 +284,24 @@ export const Header: React.FC<HeaderProps> = ({
                       }
                     }}
                   >
-                    <Link000
-                      onClick={link.action}
-                      className={`py-1 inline-flex items-center gap-1.5 transition-colors cursor-pointer select-none ${
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        link.action();
+                      }}
+                      className={`py-1.5 px-0.5 inline-flex items-center gap-1.5 transition-colors cursor-pointer select-none text-[13.5px] xl:text-sm ${
                         link.active
-                          ? 'text-[#B45309] font-extrabold before:scale-x-100 before:bg-[#F5D103]'
-                          : 'text-[#18181B] hover:text-[#B45309] font-bold before:bg-[#F5D103]'
+                          ? 'text-[#B45309] font-extrabold'
+                          : 'text-[#18181B] hover:text-[#B45309] font-bold'
                       }`}
                     >
-                      <span>{link.label}</span>
+                      <span className="relative pb-0.5">
+                        {link.label}
+                        {link.active && (
+                          <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#F5D103] rounded-full" />
+                        )}
+                      </span>
                       {link.badge && (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#F5D103] text-[#18181B] leading-none shadow-2xs">
                           {link.badge}
@@ -291,11 +310,11 @@ export const Header: React.FC<HeaderProps> = ({
                       {link.isDropdown && (
                         <ChevronDown
                           className={`w-4 h-4 transition-transform duration-200 ${
-                            isDropdownOpen ? 'rotate-180 text-[#B45309]' : 'text-[#18181B]/70 hover:text-[#B45309]'
+                            isDropdownOpen ? 'rotate-180 text-[#B45309]' : 'text-[#18181B]/70'
                           }`}
                         />
                       )}
-                    </Link000>
+                    </button>
                   </div>
                 );
               })}
@@ -465,6 +484,21 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Desktop Right Controls (Tablet & Up) */}
               <div className="hidden md:flex items-center gap-1.5">
+                {/* Sound Effects Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleSound}
+                  className="p-1.5 rounded-full text-stone-600 hover:text-[#B45309] hover:bg-stone-100/70 transition-colors cursor-pointer active:scale-90"
+                  aria-label={isMuted ? 'Enable sound effects' : 'Mute sound effects'}
+                  title={isMuted ? 'Sound effects muted (Click to enable)' : 'Sound effects active (Click to mute)'}
+                >
+                  {isMuted ? (
+                    <VolumeX className="w-4 h-4 text-stone-400" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-[#B45309]" />
+                  )}
+                </button>
+
                 {/* Desktop Account Icon */}
                 <button
                   type="button"

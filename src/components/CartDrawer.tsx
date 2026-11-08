@@ -8,9 +8,12 @@ import {
   ArrowRight,
   Sparkles,
   Truck,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
+import { useSoundEffects } from '../hooks/useSoundEffects';
 import { backdropVariants, drawerRightVariants } from '../motion/variants';
 
 interface CartDrawerProps {
@@ -34,6 +37,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
     freeDeliveryThreshold,
     amountNeededForFreeDelivery,
   } = useCart();
+  const { isMuted, toggleSound } = useSoundEffects();
 
   const [promoInput, setPromoInput] = useState('');
   const [promoError, setPromoError] = useState('');
@@ -115,14 +119,30 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onCheckout }) => {
                     </h3>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsCartOpen(false)}
-                    className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors cursor-pointer"
-                    aria-label="Close cart"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={toggleSound}
+                      className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors cursor-pointer"
+                      aria-label={isMuted ? 'Enable sound effects' : 'Mute sound effects'}
+                      title={isMuted ? 'Sound effects muted (Click to enable)' : 'Sound effects active (Click to mute)'}
+                    >
+                      {isMuted ? (
+                        <VolumeX className="w-4 h-4 text-stone-400" />
+                      ) : (
+                        <Volume2 className="w-4 h-4 text-[#B45309]" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCartOpen(false)}
+                      className="p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors cursor-pointer"
+                      aria-label="Close cart"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Free Delivery Bar */}

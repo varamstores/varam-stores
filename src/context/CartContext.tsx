@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Product, CartItem } from '../types';
 import { animateFlyToCart } from '../utils/flyToCart';
+import { soundEffects } from '../utils/soundEffects';
 
 interface CartContextType {
   items: CartItem[];
@@ -55,7 +56,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCartOpen, setIsCartOpenState] = useState(false);
+
+  const setIsCartOpen = (open: boolean) => {
+    setIsCartOpenState(open);
+    soundEffects.playDrawer(open);
+  };
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(() => {
     try {
       return localStorage.getItem(COUPON_STORAGE_KEY) || localStorage.getItem(LEGACY_COUPON_KEY) || null;
@@ -94,7 +100,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     quantity: number = 1,
     source?: HTMLElement | React.MouseEvent | { x: number; y: number } | null
   ) => {
-    // Trigger the pop-up & fall-into-cart animation!
+    // Play tactile sound feedback & trigger fly-to-cart animation!
+    soundEffects.playAddToCart();
     animateFlyToCart(product, source);
 
     setItems((prev) => {
@@ -112,6 +119,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeFromCart = (productId: string) => {
+    soundEffects.playRemoveFromCart();
     setItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
@@ -126,9 +134,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setItems((prev) => {
       const existing = prev.find((item) => item.product.id === productId);
-      if (existing && quantity > existing.quantity) {
-        // Trigger fly to cart animation on increment!
-        animateFlyToCart(existing.product, source);
+      if (existing) {
+        if (quantity > existing.quantity) {
+          soundEffects.playQuantityChange(true);
+          // Trigger fly to cart animation on increment!
+          animateFlyToCart(existing.product, source);
+        } else if (quantity < existing.quantity) {
+          soundEffects.playQuantityChange(false);
+        }
       }
       return prev.map((item) =>
         item.product.id === productId ? { ...item, quantity } : item
@@ -137,6 +150,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const clearCart = () => {
+    soundEffects.playRemoveFromCart();
     setItems([]);
   };
 
@@ -144,6 +158,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanCode = code.trim().toUpperCase();
     if (cleanCode === 'FRESH20') {
       setAppliedCoupon('FRESH20');
+      soundEffects.playCoupon();
       showToast('Offer applied: 20% off your basket!');
       return true;
     }
