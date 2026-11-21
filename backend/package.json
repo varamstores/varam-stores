@@ -1,0 +1,24 @@
+{
+  "name": "varam-backend",
+  "private": true,
+  "description": "Varam Foods backend: all logic lives in Postgres (Supabase). Scripts here only apply SQL from this machine.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "db:migrate": "node scripts/migrate.mjs",
+    "assets:upload": "node scripts/upload-public-assets.mjs",
+    "db:status": "node scripts/migrate.mjs --status",
+    "db:build-seed": "node --experimental-strip-types --no-warnings scripts/build-seed.mjs",
+    "db:seed": "node scripts/seed.mjs",
+    "db:test": "node scripts/test.mjs",
+    "db:lint": "node scripts/lint.mjs",
+    "db:bootstrap-admin": "node scripts/bootstrap-admin.mjs",
+    "supabase:configure": "node scripts/configure-supabase.mjs",
+    "db:all": "npm run db:migrate && npm run supabase:configure && npm run db:seed && npm run db:lint && npm run db:test"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
