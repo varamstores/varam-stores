@@ -1,6 +1,6 @@
 # Varam Foods — Build Progress
 
-**Overall: 20 % complete** `████░░░░░░░░░░░░░░░░` · last updated 2026-11-21
+**Overall: 66 % complete** `█████████████░░░░░░░` · last updated 2026-11-22
 
 Everything runs inside the Supabase Postgres database (London, eu-west-2). There's no API
 server: the website and admin portal call Postgres functions directly through Supabase.
@@ -13,91 +13,107 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 | 0 | Discovery & contract | 3 % | ✅ 100 % | `██████████` |
 | 1 | Foundations (schemas, security, runner, tests) | 5 % | ✅ 100 % | `██████████` |
 | 2 | Database schema + all mock data + all images → Supabase | 12 % | ✅ 100 % | `██████████` |
-| 3 | CMS (every page/section/image/nav/footer/SEO/microcopy, desktop + mobile) + storefront from DB | 16 % | ⬜ 0 % | `░░░░░░░░░░` |
-| 4 | Customer accounts (sign-up/login, addresses, wishlist, newsletter, GDPR) | 10 % | ⬜ 0 % | `░░░░░░░░░░` |
-| 5 | Cart & pricing engine (promotions, VAT, fees) | 10 % | ⬜ 0 % | `░░░░░░░░░░` |
-| 6 | Slots, checkout, Stripe payments, emails — 🏁 first full order | 12 % | ⬜ 0 % | `░░░░░░░░░░` |
-| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | ⬜ 0 % | `░░░░░░░░░░` |
-| 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | ⬜ 0 % | `░░░░░░░░░░` |
+| 3 | CMS (every page/section/image/nav/footer/SEO/microcopy, desktop + mobile) + storefront from DB | 16 % | 🟨 85 % | `████████▌░` |
+| 4 | Customer accounts (sign-up/login, addresses, wishlist, newsletter, GDPR) | 10 % | 🟨 95 % | `█████████▌` |
+| 5 | Cart & pricing engine (promotions, VAT, fees) | 10 % | 🟨 95 % | `█████████▌` |
+| 6 | Slots, checkout, Stripe payments, emails — 🏁 first full order | 12 % | 🟨 85 % | `████████▌░` |
+| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 20 % | `██░░░░░░░░` |
+| 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | 🟨 5 % | `▌░░░░░░░░░` |
 | 9 | Hardening & launch checklist | 5 % | ⬜ 0 % | `░░░░░░░░░░` |
 
 ## What's live in the database right now
 
 | Area | Count | Notes |
 |---|---|---|
-| Migrations applied | 11 | `backend/db/migrations/0001…0011` |
-| Tables | 82 | private schema `app`, RLS on, not reachable from the browser |
-| Browser-callable functions | 1 | `api.health()`. More arrive with each phase |
-| Automated tests | 93 passing, 0 failing | security, money/VAT, constraints, seed integrity |
-| Products | 42 live + 2 draft | all from `src/data/products.ts` + admin inventory mock |
-| Categories | 15 + 55 subcategories | your approved tree |
-| Brands | 94 (22 with logos) | |
-| Homepage shelves | 4 × 5 products | |
-| Images in Supabase Storage | 181 / 181 | bucket `storefront`, public read |
-| Delivery zones / slot templates | 5 / 105 | 3 windows a day, 20 each, 2 h cut-off |
-| Promotions / coupons | 5 / 4 | FRESH20, VARAM10, HERTSFREE active; VARAM20 draft; £5 loyalty reward |
-| Loyalty tiers | 3 | Member 0 · Gold 1,000 · VIP 2,000 |
-| Sample data (purgeable) | 7 customers · 6 orders · 5 staff · 4 reviews · 3 vans · 3 drivers · 44 stock rows | `select app.purge_sample_data();` removes all of it |
-| Store Manager login | test@gmail.com | works (verified via Supabase Auth) |
+| Migrations applied | 22 | `backend/db/migrations/0001…0022` |
+| Tables | 89 | private schema `app`, RLS on, not reachable from the browser |
+| Browser-callable functions | 83 | catalogue, CMS, basket, accounts, checkout, orders, loyalty, alerts, repeat orders |
+| Automated tests | **275 passing, 0 failing** | security, money/VAT, constraints, seed, catalogue, basket, accounts, checkout, engagement |
+| CMS | 19 pages · 76 sections · 798 entries | every text, image, link and section on the site; edits go live within a minute |
+| Delivery slots open | 115 | generated hourly from the slot templates |
+| Scheduled jobs | 8 | slots, slot holds, payment reconciler, email outbox, guest baskets, alerts, repeat orders, basket reminders |
+| Products | 42 live + 2 draft | |
+| Images in Supabase Storage | 181 / 181 | bucket `storefront` |
+| Store Manager login | test@gmail.com | |
+
+## What works end to end today (website)
+- Every storefront screen reads Postgres: home, shop (server-side filters, search, sort, paging), product page (with legal food info, real reviews), quick view, basket, delivery area, wishlist, content pages, checkout, account.
+- Basket is priced by Postgres: promotions and promo codes (with clear "why not" reasons), delivery fees by area, free-delivery threshold, slot charges, VAT per line (delivery VAT split by rate).
+- Sign up / sign in / password reset (Supabase Auth), profile, addresses, preferences, marketing consents, saved items synced to the account, newsletter double opt-in, download my data, delete my account.
+- Checkout: real delivery windows with a live hold, age check, terms, **order placed and confirmed** (payments run in *test mode* until the Stripe keys arrive), cancel before cut-off, reorder, order history with timeline.
+- Fabricated figures removed (fake ratings, "10,000+ items", "90+ brands", "99.4 % on time"); live counts used instead.
 
 ## Phase checklists
 
-### ✅ Phase 0 — Discovery & contract
-- [x] Read the whole frontend (zero API calls, no login UI, everything mocked)
-- [x] Contract, data model, gaps, plan — `backend/docs/`
-- [x] All architecture and business decisions recorded (PLAN.md §3, D1–D26)
+### 🟨 Phase 3 — CMS + storefront from the database (85 %)
+- [x] Content model: pages, sections, typed entries, desktop + mobile images, per-device visibility, admin-set order
+- [x] Navigation, header, mega-menus, footer, social, contact, announcement bar, mobile bottom bar, loading screen
+- [x] SEO per page (title template, description, sharing image); 11 content pages (unpublished, empty — legal text must come from you)
+- [x] Microcopy: buttons, labels, toasts, empty states, error messages, promo-code reasons
+- [x] Homepage sections, shop, product, basket, delivery pop-up, quick view, wishlist, checkout, account → CMS
+- [x] Catalogue functions; frontend reads everything from Postgres
+- [ ] "Our Story" page → CMS
+- [ ] Catalogue mock files deleted (still read by the admin portal until Phase 8)
 
-### ✅ Phase 1 — Foundations
-- [x] Extensions: pg_trgm, unaccent, btree_gist, pgtap, plpgsql_check, pg_jsonschema, http, pg_net, pg_cron
-- [x] Schema `app` (private tables) + schema `api` (browser functions only); PostgREST exposes only `api`
-- [x] Fail-closed grants from `@access` tags; PUBLIC never executes anything
-- [x] Error contract (`PTxxx` → HTTP status, stable codes)
-- [x] Migration runner (checksummed), test runner (rolled back), linter
-- [x] Verified over HTTP: `api.health` → 200; direct table access → 404
+### 🟨 Phase 4 — Customer accounts (95 %)
+- [x] Sign-up completion with separate, timestamped Terms + marketing consents; session context (customer / staff)
+- [x] Profile, preferences, consent ledger, addresses, wishlist (+ merge of items saved while signed out)
+- [x] Newsletter double opt-in, confirm/unsubscribe pages; GDPR export + erasure
+- [x] Account screens: sign in/up, reset password, finish profile, overview, orders, addresses, preferences, profile, privacy
+- [ ] Supabase Auth settings: site URL + branded auth emails (needs your sending domain)
 
-### ✅ Phase 2 — Schema, data, images
-- [x] 82 tables: catalogue, price history, 14 allergens, nutrition, stock + ledger, suppliers/POs, customers, consents, staff/roles/permissions, loyalty, promotions, zones/slots/holds, fleet, carts, checkouts, orders + lines, payments, refunds, invoices/credit notes, outbox, audit, rate limits, media
-- [x] Guarantees built into the DB: no overselling, no over-capture, no overlapping VAT rates or prices, deposits never discounted, slots never over capacity, ledgers append-only, invoices immutable, gapless invoice numbers
-- [x] All frontend mock data → Postgres (catalogue live, people/orders sample)
-- [x] All 181 images → Supabase Storage
-- [x] Store Manager login created
-- [x] One-command sample purge (tested)
+### 🟨 Phase 5 — Basket & pricing (95 %)
+- [x] Guest + customer baskets, automatic merge on sign-in, import of the old browser basket
+- [x] Deterministic pricing engine: product + basket promotions, coupons, allocation, fees, slot charge, VAT
+- [ ] Tests for multibuy and member-price promotion types (engine supports them; none are set up yet)
 
-### ⬜ Phase 3 — CMS + storefront from the database
-- [ ] Content model: pages, sections, fields, desktop + mobile images, per-device visibility, order
-- [ ] Navigation, header, mega-menus, footer, social, contact, announcement bar, mobile bottom nav
-- [ ] SEO per page; static pages (Our Story, Terms, Privacy, Cookies, FAQ, Shipping, Returns, Contact)
-- [ ] Microcopy dictionary: every button, label, toast, empty state, message
-- [ ] Extract every string and image from the frontend components into the CMS
-- [ ] Catalogue functions (categories, brands, products, search, shelves, reviews)
-- [ ] Frontend reads everything from Postgres; catalogue mock files deleted
+### 🟨 Phase 6 — Checkout & payment 🏁 (85 %)
+- [x] Slots + holds, postcode check, checkout, idempotent order placement, stock reservation, VAT order lines
+- [x] Stripe from Postgres (verified server-side, reconciler) — **waiting for your Stripe test keys**
+- [x] Test-mode payments for development (refused in production)
+- [x] Email outbox + Resend sender — **waiting for your Resend key and domain**
+- [ ] Switch to Stripe and send a real test-card order once keys arrive
 
-### ⬜ Phase 4 — Customer accounts
-### ⬜ Phase 5 — Cart & pricing
-### ⬜ Phase 6 — Checkout & payment 🏁
-### ⬜ Phase 7 — Order management end-to-end
-### ⬜ Phase 8 — Admin portal fully functional
+### 🟨 Phase 7 — Order management (20 %)
+- [x] Order state machine with full history; customer cancellation releases stock, slot, coupon and card hold
+- [x] Loyalty: balance, tiers, rewards redeemed as personal codes
+- [ ] Picking (weights, substitutions), capture ≤ authorised, invoices, dispatch, delivery + ID check, refunds / credit notes, loyalty earning
+
+### 🟨 Phase 8 — Admin portal (5 %)
+- [x] CMS editor functions in the database (overview, edit entry/section/page, search, media library)
+- [ ] Every admin tab wired; CMS editor screens with guidance; every setting editable; mock admin data deleted
+
 ### ⬜ Phase 9 — Hardening
+
+## Advanced features you chose (2026-11-22)
+| Feature | Database | Website / admin |
+|---|---|---|
+| Buy it again + "often bought together" | ✅ | ✅ buy it again (account) · ⬜ "bought together" row |
+| Back-in-stock & price-drop alerts | ✅ (+ email job) | ✅ product page buttons, account tab |
+| Repeat orders (basket refilled + reminder, nothing charged automatically) | ✅ (+ daily job) | ✅ account tab, "Repeat this order" |
+| Abandoned-basket reminders (only with marketing consent) | ✅ (+ hourly job) | ✅ settings in admin later |
+| Low-stock automatic purchase orders | ⬜ | ⬜ (Phase 8) |
+| Product CSV import / export | ⬜ | ⬜ (Phase 8) |
 
 ## Mock removal tracker (goal: zero)
 | Frontend source | Data in DB | Frontend reads DB | File deleted |
 |---|---|---|---|
-| `src/data/products.ts` | ✅ | ⬜ | ⬜ |
-| `src/data/categories.ts` | ✅ | ⬜ | ⬜ |
-| `src/data/brands.ts` | ✅ | ⬜ | ⬜ |
-| `src/data/reviews.ts` | ✅ | ⬜ | ⬜ |
+| `src/data/products.ts` | ✅ | ✅ storefront · ⬜ admin | ⬜ |
+| `src/data/categories.ts` | ✅ | ✅ storefront · ⬜ admin | ⬜ |
+| `src/data/brands.ts` | ✅ | ✅ | ⬜ |
+| `src/data/reviews.ts` | ✅ | ✅ | ⬜ |
 | `src/data/adminMockData.ts` | ✅ | ⬜ | ⬜ |
-| Hard-coded copy and images in components | ⬜ (Phase 3) | ⬜ | — |
-| Images in `public/` | ✅ in Storage | ⬜ | ⬜ (favicons stay) |
+| Hard-coded copy and images in components | ✅ | ✅ (except Our Story, admin) | — |
 
 ## Waiting on you
-1. **Stripe test keys** (`sk_test_…`, `pk_test_…`): needed for Phase 6
-2. **Resend API key** + sending domain: needed for emails
-3. **VAT entity details**: legal name, company number, VAT number, registered address
-4. **Hub address** (and click & collect, yes or no?)
-5. Any weighed items besides tomatoes, bananas and broccoli?
-6. SMS / WhatsApp provider (optional; messages queue until then)
-7. Rotate the DB password and Supabase access token (they were pasted in chat). Later, change the test@gmail.com login
+1. **Stripe test keys** (`sk_test_…`, `pk_test_…`) — checkout runs in test mode until then
+2. **Resend API key** + sending domain — emails are queued (visible in the database) until then
+3. **VAT entity details**: legal name, company number, VAT number, registered address (needed for invoices)
+4. **Hub address** for the fulfilment location
+5. **Legal page wording** (Terms, Privacy, Cookies, Returns, Delivery): pages exist, hidden until you add the text
+6. Marketing claims to confirm or edit in the CMS ("100% organic", "zero air-miles", "plastic-free", "100% money-back"): kept as written
+7. Rotate the DB password and Supabase access token (they were pasted in chat); later change the test@gmail.com login
 
 ## Log
+- **2026-11-22**: Storefront fully on Postgres + CMS (798 entries). Basket & pricing engine, accounts, delivery slots, checkout and orders, loyalty, reviews, alerts, repeat orders, basket reminders. 22 migrations, 275 tests green.
 - **2026-11-21**: Phases 0–2 complete. 11 migrations, 82 tables, 93 tests green, all mocks and images in Supabase, Store Manager login live.

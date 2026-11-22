@@ -1,56 +1,20 @@
-export interface Product {
-  id: string;
-  name: string;
-  category: string;
-  categoryLabel: string;
-  price: number;
-  originalPrice?: number;
-  unit: string;
-  image: string;
-  rating: number;
-  reviewsCount: number;
-  badge?: string;
-  isOrganic?: boolean;
-  origin?: string;
-  description: string;
-  galleryImages?: string[];
-  inStock?: boolean;
-  storage?: string;
-  sourcing?: string;
-  nutrition?: {
-    calories: string;
-    carbs: string;
-    protein: string;
-    fat: string;
-  };
-}
+// Frontend domain types. Products, categories and reviews come straight from the Postgres API
+// (see ./api.ts); the old mock shapes are gone.
+import type { Money, ProductSummary } from './api';
 
-export interface Category {
-  id: string;
-  name: string;
-  itemCount: string;
-  image: string;
-  accentBg: string;
-  tagline?: string;
-  badge?: string;
-  accentColor?: string;
-  cardBg?: string;
-  slug?: string;
-  subcategories?: string[];
-}
+export type { Category, Review, Brand, ProductDetail, ProductSummary, Money } from './api';
 
+/** A product as shown in lists and cards. */
+export type Product = ProductSummary;
+
+/** One basket line. `id` is the server line id once the basket is saved. */
 export interface CartItem {
-  product: Product;
-  quantity: number;
-}
-
-export interface Review {
   id: string;
-  name: string;
-  location: string;
-  avatar: string;
-  rating: number;
-  text: string;
-  verified: boolean;
-  date: string;
+  product: ProductSummary;
+  quantity: number;
+  weightGrams: number | null;
+  unitPrice: Money;
+  lineTotal: Money;
+  substitutionAllowed: boolean;
+  isEstimate: boolean;
 }

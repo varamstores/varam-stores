@@ -1,67 +1,52 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Search, X, Sparkles } from 'lucide-react';
-import { brandGroups, type BrandItem } from '../data/brands';
+import { useBrands } from '../lib/catalogue';
+import { useCms } from '../cms/CmsProvider';
+import { InlineText } from '../cms/components';
+import type { Brand } from '../types/api';
 
 interface BrandsMegaMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBrand: (brandName: string) => void;
+  /** Called with the brand slug. */
+  onSelectBrand: (slug: string) => void;
   onViewAllBrands?: () => void;
 }
 
-export const BrandsMegaMenu: React.FC<BrandsMegaMenuProps> = ({
-  isOpen,
-  onClose,
-  onSelectBrand,
-  onViewAllBrands,
-}) => {
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+const GROUP_ORDER = ['0-9', 'A-B', 'C-E', 'F-H', 'I-K', 'L-O', 'P-R', 'S-U', 'V-Z'];
+
+export const BrandsMegaMenu: React.FC<BrandsMegaMenuProps> = ({ isOpen, onClose, onSelectBrand, onViewAllBrands }) => {
+  const cms = useCms();
+  const { data: brands = [] } = useBrands();
   const [filterText, setFilterText] = useState('');
 
-  // Close on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
-
-  // Reset filter when menu closes
   useEffect(() => {
     if (!isOpen) {
       setFilterText('');
+      return;
     }
-  }, [isOpen]);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
-  const handleBrandClick = (brandName: string) => {
-    onSelectBrand(brandName);
-    onClose();
-  };
-
-  const filteredGroups = useMemo(() => {
-    if (!filterText.trim()) return brandGroups;
+  const groups = useMemo(() => {
     const q = filterText.trim().toLowerCase();
-    return brandGroups
-      .map((g) => ({
-        ...g,
-        brands: g.brands.filter((b) => b.name.toLowerCase().includes(q)),
-      }))
-      .filter((g) => g.brands.length > 0);
-  }, [filterText]);
+    const byGroup = new Map<string, Brand[]>();
+    for (const b of brands) {
+      if (q && !b.name.toLowerCase().includes(q)) continue;
+      byGroup.set(b.group, [...(byGroup.get(b.group) ?? []), b]);
+    }
+    return [...byGroup.entries()]
+      .sort((a, b) => GROUP_ORDER.indexOf(a[0]) - GROUP_ORDER.indexOf(b[0]))
+      .map(([group, list]) => ({ group, brands: list }));
+  }, [brands, filterText]);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Subtle Page Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -72,7 +57,6 @@ export const BrandsMegaMenu: React.FC<BrandsMegaMenuProps> = ({
             aria-hidden="true"
           />
 
-          {/* Full-Width Mega Menu Attached Flush Beneath Header */}
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -80,33 +64,24 @@ export const BrandsMegaMenu: React.FC<BrandsMegaMenuProps> = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="absolute top-full left-0 right-0 w-full bg-white border-b border-stone-200 shadow-2xl z-50"
           >
-            {/* Scrollable Container with data-lenis-prevent for native wheel scrolling */}
-            <div
-              ref={scrollAreaRef}
-              data-lenis-prevent="true"
-              style={{ overscrollBehavior: 'contain' }}
-              className="w-full max-h-[76vh] overflow-y-auto py-6 sm:py-8 px-6 sm:px-10 lg:px-12"
-            >
+            <div data-lenis-prevent="true" style={{ overscrollBehavior: 'contain' }} className="w-full max-h-[76vh] overflow-y-auto py-6 sm:py-8 px-6 sm:px-10 lg:px-12">
               <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-                {/* Header Row */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 mb-6 border-b border-stone-200 gap-4">
                   <div className="flex flex-wrap items-baseline gap-3">
                     <h3 className="font-serif-heading font-extrabold text-2xl text-[#18181B] tracking-tight">
-                      Shop by <span className="text-[#B45309] underline decoration-[#F5D103] decoration-wavy">Brands</span>
+                      <InlineText text={cms.t('global.brands_menu.title')} strongClass="text-[#B45309] underline decoration-[#F5D103] decoration-wavy" />
                     </h3>
-                    <span className="text-sm text-[#18181B]/80 font-semibold">
-                      90+ Authentic Indian Grocery Brands
-                    </span>
+                    <span className="text-sm text-[#18181B]/80 font-semibold">{cms.t('global.brands_menu.subtitle', { count: brands.length })}</span>
                   </div>
 
-                  {/* Inline Filter Search & View All */}
                   <div className="flex items-center gap-3">
                     <div className="relative w-64 sm:w-72">
                       <input
                         type="text"
                         value={filterText}
                         onChange={(e) => setFilterText(e.target.value)}
-                        placeholder="Search brand in directory..."
+                        placeholder={cms.t('global.brands_menu.search_placeholder')}
+                        aria-label={cms.t('global.brands_menu.search_placeholder')}
                         className="w-full text-xs font-medium pl-8 pr-7 py-2 rounded-full border border-stone-200 bg-white text-[#18181B] placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/30 focus:border-[#F5D103] shadow-2xs transition-all"
                       />
                       <Search className="w-3.5 h-3.5 text-[#18181B]/60 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -114,53 +89,49 @@ export const BrandsMegaMenu: React.FC<BrandsMegaMenuProps> = ({
                         <button
                           type="button"
                           onClick={() => setFilterText('')}
+                          aria-label={cms.t('global.header.search_clear_aria')}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-800 p-0.5 cursor-pointer"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       )}
                     </div>
-
                     <button
                       type="button"
                       onClick={() => {
-                        if (onViewAllBrands) onViewAllBrands();
-                        else onSelectBrand('');
+                        onViewAllBrands?.();
                         onClose();
                       }}
                       className="text-xs font-bold text-[#18181B] bg-[#F5D103] hover:bg-[#E5A800] px-4 py-2 rounded-full flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs shrink-0"
                     >
-                      <span>View All Brands</span>
+                      <span>{cms.t('global.brands_menu.view_all')}</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Directory Grid */}
-                {filteredGroups.length === 0 ? (
+                {groups.length === 0 ? (
                   <div className="py-12 text-center text-stone-600">
-                    <p className="font-semibold text-sm text-[#18181B]">No brands matching &quot;{filterText}&quot;</p>
-                    <p className="text-xs text-[#18181B]/70 mt-1">Try another brand name or browse all items in the store</p>
+                    <p className="font-semibold text-sm text-[#18181B]">{cms.t('global.brands_menu.empty_title', { query: filterText })}</p>
+                    <p className="text-xs text-[#18181B]/70 mt-1">{cms.t('global.brands_menu.empty_hint')}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-7">
-                    {filteredGroups.map((group) => (
+                    {groups.map((group) => (
                       <div key={group.group} className="flex flex-col">
                         <div className="flex items-center justify-between pb-2 mb-2.5 border-b-2 border-[#F5D103]">
-                          <span className="font-extrabold text-sm text-[#18181B] tracking-wider uppercase">
-                            {group.group}
-                          </span>
-                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-[#B45309]">
-                            {group.brands.length}
-                          </span>
+                          <span className="font-extrabold text-sm text-[#18181B] tracking-wider uppercase">{group.group}</span>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-[#B45309]">{group.brands.length}</span>
                         </div>
-
                         <ul className="space-y-1">
-                          {group.brands.map((brand: BrandItem) => (
+                          {group.brands.map((brand) => (
                             <li key={brand.id}>
                               <button
                                 type="button"
-                                onClick={() => handleBrandClick(brand.name)}
+                                onClick={() => {
+                                  onSelectBrand(brand.slug);
+                                  onClose();
+                                }}
                                 className="w-full text-left px-2.5 py-1 -mx-2.5 rounded-lg text-sm font-semibold text-[#18181B] hover:text-[#B45309] hover:bg-amber-100 hover:font-bold hover:translate-x-1 leading-snug transition-all duration-150 truncate cursor-pointer flex items-center justify-between group/item"
                               >
                                 <span className="truncate">{brand.name}</span>

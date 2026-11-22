@@ -1,4 +1,4 @@
-import type { Category } from '../types';
+import type { LegacyCategory as Category } from './legacyTypes';
 
 export const categories: Category[] = [
   {

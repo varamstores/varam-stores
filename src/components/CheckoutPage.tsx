@@ -1,350 +1,319 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  ArrowLeft,
-  ShieldCheck,
-  CheckCircle2,
-  Truck,
-  CreditCard,
-  Lock,
-  MapPin,
-  Plus,
-  Minus,
-  Trash2,
-  Sparkles,
-  Leaf,
-  Phone,
-  Mail,
-  User,
-  Printer,
-  ShoppingBag
-} from 'lucide-react';
+import { ArrowLeft, ShieldCheck, CheckCircle2, Truck, Lock, MapPin, Clock, Printer, ShoppingBag, AlertTriangle, Plus, Leaf } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { useCart } from '../context/CartContext';
 import { useNavigation } from '../context/NavigationContext';
+import { useAuth } from '../context/AuthContext';
 import { soundEffects } from '../utils/soundEffects';
+import { rpc, isApiError } from '../lib/api';
+import { formatMoney, formatGrams } from '../lib/money';
+import { useAddresses, saveAddress, accountKeys } from '../lib/account';
+import { useDeliverySlots, useSlotLabeller, type DeliverySlot } from '../lib/delivery';
+import { useCms } from '../cms/CmsProvider';
+import { InlineText, Picture } from '../cms/components';
+import { useErrorMessage, useSeo } from '../cms/hooks';
+import type { Address, CheckoutView, OrderView, PlaceOrderResult } from '../types/api';
 
 interface CheckoutPageProps {
-  postalCode?: string;
-  onSelectPostalCode?: (code: string) => void;
+  onOpenLocationModal?: () => void;
 }
 
-export const CheckoutPage: React.FC<CheckoutPageProps> = ({
-  postalCode = 'Hatfield, AL10',
-  onSelectPostalCode
-}) => {
-  const {
-    items,
-    updateQuantity,
-    removeFromCart,
-    clearCart,
-    subtotal,
-    discountAmount,
-    appliedCoupon,
-    applyCoupon,
-    removeCoupon,
-    freeDeliveryThreshold,
-    amountNeededForFreeDelivery
-  } = useCart();
+const CHECKOUT_KEY = 'varam.checkout.v1';
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+let stripePromise: Promise<Stripe | null> | null = null;
+const getStripe = () => (stripePromise ??= stripeKey ? loadStripe(stripeKey) : Promise.resolve(null));
 
-  const { goToShop, goToAccount } = useNavigation();
+const field = 'w-full text-sm px-3 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-[#F5D103] focus:ring-2 focus:ring-[#F5D103]/20 bg-white';
+const card = 'bg-white rounded-3xl border border-stone-200/90 p-5 sm:p-7 shadow-2xs';
 
-  // Step 1: Customer Contact Details
-  const [firstName, setFirstName] = useState('Priya');
-  const [lastName, setLastName] = useState('Sharma');
-  const [email, setEmail] = useState('priya.sharma@example.co.uk');
-  const [phone, setPhone] = useState('07700 900142');
-  const [smsUpdates, setSmsUpdates] = useState(true);
+function readSaved(): { checkoutId: string; key: string } | null {
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function writeSaved(v: { checkoutId: string; key: string } | null) {
+  try {
+    if (v) sessionStorage.setItem(CHECKOUT_KEY, JSON.stringify(v));
+    else sessionStorage.removeItem(CHECKOUT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
-  // Step 2: Delivery Address Details
-  const [addressLine1, setAddressLine1] = useState('14 College Lane');
-  const [addressLine2, setAddressLine2] = useState('Flat 4B');
-  const [townCity, setTownCity] = useState('Hatfield');
-  const [county, setCounty] = useState('Hertfordshire');
-  const [postcode, setPostcode] = useState(
-    postalCode.includes('AL10') ? 'AL10 9PJ' : postalCode.split(',')[1]?.trim() || 'AL10 9PJ'
+const StepHeading: React.FC<{ n: number; title: string; done?: boolean; icon: React.ReactNode }> = ({ n, title, done, icon }) => (
+  <div className="flex items-center gap-3 mb-4">
+    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold ${done ? 'bg-[#18181B] text-[#F5D103]' : 'bg-amber-100 text-[#B45309]'}`}>
+      {done ? <CheckCircle2 className="w-4 h-4" /> : n}
+    </span>
+    <h2 className="font-serif-heading font-bold text-lg sm:text-xl text-[#18181B] flex items-center gap-2">{icon}{title}</h2>
+  </div>
+);
+
+/** Holds the "Place order" button inside Stripe <Elements> so it can confirm the card. */
+const StripePay: React.FC<{ label: string; disabled: boolean; onPlace: (confirm: (clientSecret: string, orderNumber: string) => Promise<string | null>) => void }> = ({ label, disabled, onPlace }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  return (
+    <>
+      <div className="mb-4"><PaymentElement options={{ layout: 'tabs' }} /></div>
+      <button
+        type="button"
+        disabled={disabled || !stripe || !elements}
+        onClick={() =>
+          onPlace(async (clientSecret, orderNumber) => {
+            if (!stripe || !elements) return 'Stripe not ready';
+            const submitted = await elements.submit();
+            if (submitted.error) return submitted.error.message ?? 'Card error';
+            const { error } = await stripe.confirmPayment({
+              elements,
+              clientSecret,
+              confirmParams: { return_url: `${window.location.origin}/checkout?order=${encodeURIComponent(orderNumber)}` },
+              redirect: 'if_required',
+            });
+            return error ? (error.message ?? 'Card error') : null;
+          })
+        }
+        className="w-full py-4 rounded-full bg-[#18181B] hover:bg-[#E5A800] hover:text-[#18181B] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Lock className="w-4 h-4" />
+        {label}
+      </button>
+    </>
   );
-  const [deliveryNotes, setDeliveryNotes] = useState('Please leave in porch if unanswered. Ring bell once.');
-  const [isContactless, setIsContactless] = useState(true);
+};
 
-  // Step 3: Delivery Window Slots
-  const deliverySlots = [
-    {
-      id: 'today-eve',
-      title: 'Today Evening Express',
-      time: '6:00 PM – 8:00 PM',
-      badge: 'Fastest',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      price: subtotal >= 50 ? 0 : 2.99,
-      note: 'Order before 5:00 PM'
-    },
-    {
-      id: 'tmrw-morn',
-      title: 'Tomorrow Morning Fresh',
-      time: '8:00 AM – 10:00 AM',
-      badge: 'Sunrise Harvest',
-      badgeColor: 'bg-amber-100 text-[#92400E] border-amber-200',
-      price: subtotal >= 50 ? 0 : 1.99,
-      note: 'Harvested at dawn'
-    },
-    {
-      id: 'tmrw-eve',
-      title: 'Tomorrow Evening Relaxed',
-      time: '6:00 PM – 8:00 PM',
-      badge: 'Standard',
-      badgeColor: 'bg-stone-100 text-stone-700 border-stone-200',
-      price: subtotal >= 50 ? 0 : 1.99,
-      note: 'Ideal after work'
-    },
-    {
-      id: 'eco-saver',
-      title: 'Green Eco-Saver Slot',
-      time: 'Friday, 10:00 AM – 2:00 PM',
-      badge: 'Zero Extra CO₂',
-      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      price: 0,
-      note: 'Optimized electric van route'
-    }
-  ];
+export const CheckoutPage: React.FC<CheckoutPageProps> = ({ onOpenLocationModal }) => {
+  const cms = useCms();
+  useSeo('checkout');
+  const errorMessage = useErrorMessage();
+  const qc = useQueryClient();
+  const label = useSlotLabeller();
+  const { items, cart, refresh: refreshCart, setIsCartOpen } = useCart();
+  const { goToShop, goToAccount } = useNavigation();
+  const { status: authStatus, isCustomer, context } = useAuth();
+  const { data: addresses = [], isLoading: addressesLoading } = useAddresses(isCustomer);
 
-  const [selectedSlotId, setSelectedSlotId] = useState('today-eve');
-  const selectedSlot = deliverySlots.find((s) => s.id === selectedSlotId) || deliverySlots[0];
+  const [saved, setSaved] = useState(readSaved);
+  const [addressId, setAddressId] = useState<string | null>(null);
+  const [addingAddress, setAddingAddress] = useState(false);
+  const [draft, setDraft] = useState({ fullName: '', line1: '', line2: '', city: '', postcode: '', phone: '' });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [dob, setDob] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [placed, setPlaced] = useState<PlaceOrderResult | null>(null);
+  const [success, setSuccess] = useState<OrderView | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const returnHandled = useRef(false);
 
-  // Step 4: Payment Methods
-  type PaymentType = 'card' | 'apple' | 'google' | 'cod';
-  const [paymentMethod, setPaymentMethod] = useState<PaymentType>('apple');
+  const checkoutQuery = useQuery({
+    queryKey: ['checkout', saved?.checkoutId ?? ''],
+    queryFn: () => rpc<CheckoutView>('get_checkout', { p_checkout_id: saved!.checkoutId }),
+    enabled: !!saved?.checkoutId && isCustomer,
+    retry: false,
+  });
+  const checkout = checkoutQuery.data && checkoutQuery.data.status === 'open' ? checkoutQuery.data : null;
 
-  // Card fields
-  const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
-  const [cardExpiry, setCardExpiry] = useState('12/28');
-  const [cardCvc, setCardCvc] = useState('842');
-  const [cardName, setCardName] = useState('Priya Sharma');
-  const [saveCard, setSaveCard] = useState(true);
+  // Pick the default (or the checkout's) address once addresses load.
+  useEffect(() => {
+    if (addressId || !addresses.length) return;
+    setAddressId(checkout?.address?.id ?? addresses.find((a) => a.isDefault)?.id ?? addresses[0].id);
+  }, [addresses, addressId, checkout?.address?.id]);
+  useEffect(() => {
+    if (checkout) setNotes(checkout.deliveryNotes ?? '');
+  }, [checkout?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Promo code
-  const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [promoError, setPromoError] = useState('');
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
 
-  // Processing & Success State
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [orderReference, setOrderReference] = useState('');
-  const [placedOrderItems, setPlacedOrderItems] = useState<typeof items>([]);
-  const [placedOrderTotal, setPlacedOrderTotal] = useState(0);
+  // Back from a bank (3-D Secure) redirect: confirm the order from the URL.
+  useEffect(() => {
+    if (returnHandled.current || !isCustomer) return;
+    const order = new URLSearchParams(window.location.search).get('order');
+    if (!order) return;
+    returnHandled.current = true;
+    void rpc<OrderView>('confirm_order_payment', { p_order_number: order }).then((o) => {
+      finish(o);
+    }, (err) => setError(errorMessage(err)));
+  }, [isCustomer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Financial calculations
-  const deliveryFee = selectedSlot.price;
-  const grandTotal = Math.max(0, subtotal - discountAmount + deliveryFee);
+  const address: Address | undefined = addresses.find((a) => a.id === addressId);
+  const { data: slots = [], isLoading: slotsLoading } = useDeliverySlots(address?.deliverable ? address.postcode : null);
+  const slotsByDay = useMemo(() => {
+    const map = new Map<string, DeliverySlot[]>();
+    for (const s of slots) map.set(s.dayLabel, [...(map.get(s.dayLabel) ?? []), s]);
+    return [...map.entries()];
+  }, [slots]);
 
-  const handleApplyPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPromoError('');
-    if (!promoCodeInput.trim()) return;
+  const view = checkout?.cart ?? cart;
+  const totals = view?.totals;
+  const holdEnds = checkout ? new Date(checkout.expiresAt).getTime() : 0;
+  const holdExpired = !!checkout && (!checkout.holdActive || holdEnds <= now);
+  const selectedSlot = checkout?.slot ? label(checkout.slot) : null;
 
-    const success = applyCoupon(promoCodeInput.trim());
-    if (success) {
-      setPromoCodeInput('');
-    } else {
-      setPromoError('Invalid coupon code. Try FRESH20 for 20% off.');
+  const setCheckout = (c: CheckoutView, key?: string) => {
+    const next = { checkoutId: c.id, key: key ?? saved?.key ?? crypto.randomUUID() };
+    if (next.checkoutId !== saved?.checkoutId) next.key = crypto.randomUUID();
+    setSaved(next);
+    writeSaved(next);
+    qc.setQueryData(['checkout', c.id], c);
+  };
+
+  const run = async <T,>(fn: () => Promise<T>): Promise<T | undefined> => {
+    setBusy(true);
+    setError(null);
+    try {
+      return await fn();
+    } catch (err) {
+      setError(errorMessage(err));
+      if (isApiError(err, 'SLOT_HOLD_EXPIRED') || isApiError(err, 'NOT_FOUND')) {
+        writeSaved(null);
+        setSaved(null);
+      }
+      return undefined;
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (items.length === 0) return;
+  const chooseSlot = (slot: DeliverySlot) =>
+    run(async () => {
+      soundEffects.playTap();
+      const c = checkout && !holdExpired
+        ? await rpc<CheckoutView>('update_checkout', { p_checkout_id: checkout.id, p: { slotId: slot.id, ...(checkout.address?.id !== addressId ? { addressId } : {}) } })
+        : await rpc<CheckoutView>('start_checkout', { p_slot_id: slot.id, p_address_id: addressId });
+      setCheckout(c);
+      void refreshCart();
+    });
 
-    setIsProcessing(true);
-
-    // Simulate high-trust bank authorization handshake
-    setTimeout(() => {
-      const ref = `FM-${Math.floor(10000 + Math.random() * 90000)}`;
-      setOrderReference(ref);
-      setPlacedOrderItems([...items]);
-      setPlacedOrderTotal(grandTotal);
-      soundEffects.playOrderSuccess();
-      clearCart();
-      setIsProcessing(false);
-      setOrderSuccess(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 1200);
+  const chooseAddress = (id: string) => {
+    setAddressId(id);
+    // a different address may be in another zone: the slot is chosen again for it
+    if (checkout && checkout.address?.id !== id) {
+      writeSaved(null);
+      setSaved(null);
+    }
   };
 
-  // ---------------------------------------------------------------------------
-  // VIEW: ORDER SUCCESS / CONFIRMATION
-  // ---------------------------------------------------------------------------
-  if (orderSuccess) {
+  const update = (p: Record<string, unknown>) =>
+    checkout && run(async () => setCheckout(await rpc<CheckoutView>('update_checkout', { p_checkout_id: checkout.id, p })));
+
+  const addAddress = (e: React.FormEvent) => {
+    e.preventDefault();
+    void run(async () => {
+      const a = await saveAddress({ ...draft, line2: draft.line2 || null, phone: draft.phone || null });
+      await qc.invalidateQueries({ queryKey: accountKeys.addresses });
+      setAddressId(a.id);
+      setAddingAddress(false);
+      setDraft({ fullName: '', line1: '', line2: '', city: '', postcode: '', phone: '' });
+    });
+  };
+
+  const finish = (o: OrderView) => {
+    soundEffects.playOrderSuccess();
+    writeSaved(null);
+    setSaved(null);
+    setSuccess(o);
+    void refreshCart();
+    void qc.invalidateQueries({ queryKey: ['account'] });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const place = async (confirmCard?: (clientSecret: string, orderNumber: string) => Promise<string | null>) => {
+    if (!checkout || !saved) return;
+    setProcessing(true);
+    setError(null);
+    try {
+      const res = placed ?? await rpc<PlaceOrderResult>('place_order', {
+        p_checkout_id: checkout.id,
+        p_idempotency_key: saved.key,
+        p_accept_terms: acceptTerms,
+        p_terms_version: checkout.termsVersion,
+        p_expected_total_minor: checkout.cart.totals.total.amount,
+      });
+      setPlaced(res);
+      if (res.mode === 'stripe') {
+        if (!confirmCard || !res.clientSecret) throw new Error('card');
+        const cardError = await confirmCard(res.clientSecret, res.orderNumber);
+        if (cardError) {
+          setError(cardError);
+          return;
+        }
+      }
+      const order = await rpc<OrderView>('confirm_order_payment', { p_order_number: res.orderNumber });
+      finish(order);
+    } catch (err) {
+      setError(errorMessage(err));
+      if (isApiError(err, 'PRICE_CHANGED') || isApiError(err, 'SLOT_HOLD_EXPIRED')) void checkoutQuery.refetch();
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // ── success ────────────────────────────────────────────────────────────────────────────────
+  if (success) {
+    const slot = success.slot ? label(success.slot) : null;
+    const pending = success.status === 'pending_payment';
+    const steps = ['placed', 'picking', 'out_for_delivery', 'delivered'] as const;
+    const stepLabels = [cms.t('checkout.success.step_placed'), cms.t('checkout.success.step_picking'), cms.t('checkout.success.step_dispatch'), cms.t('checkout.success.step_delivered')];
+    const reached = success.timeline.map((t) => t.status);
     return (
       <div className="min-h-screen bg-[#F8FAFC] py-8 sm:py-14 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
-          {/* Success Card */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="bg-white rounded-3xl border border-stone-200/90 shadow-xl overflow-hidden"
-          >
-            {/* Header Banner */}
-            <div className="bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white p-8 sm:p-10 text-center relative overflow-hidden">
-              <div className="w-20 h-20 rounded-full bg-white text-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-lg animate-bounce">
+          <motion.div initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-white rounded-3xl border border-stone-200/90 shadow-xl overflow-hidden">
+            <div className="bg-[#18181B] text-white p-8 sm:p-10 text-center">
+              <div className="w-20 h-20 rounded-full bg-[#F5D103] text-[#18181B] flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
               </div>
-
-              <span className="inline-block text-xs font-extrabold uppercase tracking-widest bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white mb-2">
-                Order Confirmed &amp; Dispatched to Packing
-              </span>
-              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2">
-                Thank you, {firstName}!
-              </h1>
-              <p className="text-emerald-100 text-sm sm:text-base max-w-md mx-auto">
-                Your fresh farm order <span className="font-bold text-white underline underline-offset-4">{orderReference}</span> has been received and scheduled for cold-chain delivery.
+              <span className="inline-block text-xs font-extrabold uppercase tracking-widest bg-white/15 px-3 py-1 rounded-full mb-2">{cms.t('checkout.success.badge')}</span>
+              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2">{cms.t('checkout.success.title', { name: context?.customer?.firstName ?? '' })}</h1>
+              <p className="text-stone-300 text-sm sm:text-base max-w-md mx-auto">
+                <InlineText text={pending ? cms.t('checkout.success.pending') : cms.t('checkout.success.text', { number: success.orderNumber })} strongClass="text-[#F5D103]" />
               </p>
+              {slot && <p className="mt-3 text-sm"><InlineText text={cms.t('checkout.success.slot', { slot: `${slot.dayLabel}, ${slot.timeLabel}` })} /></p>}
             </div>
-
-            {/* Live Order Timeline */}
-            <div className="p-6 sm:p-8 border-b border-stone-200 bg-emerald-50/40">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-5">
-                Live Delivery Tracking
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 relative">
-                {/* Step 1: Confirmed */}
-                <div className="flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                    ✓
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[#18181B]">Order Placed</p>
-                    <p className="text-[11px] text-stone-500">Just now</p>
-                  </div>
-                </div>
-
-                {/* Step 2: Fresh Picking */}
-                <div className="flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
-                  <div className="w-8 h-8 rounded-full bg-[#F5D103] text-[#18181B] flex items-center justify-center font-bold text-xs shadow-xs shrink-0 ring-4 ring-amber-100 animate-pulse">
-                    <Leaf className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[#18181B]">Harvest &amp; Packing</p>
-                    <p className="text-[11px] text-stone-500">In chilled hub</p>
-                  </div>
-                </div>
-
-                {/* Step 3: Van Dispatch */}
-                <div className="flex items-start gap-3 sm:flex-col sm:items-center sm:text-center opacity-70">
-                  <div className="w-8 h-8 rounded-full bg-stone-200 text-stone-600 flex items-center justify-center font-bold text-xs shrink-0">
-                    <Truck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-stone-700">Refrigerated Van</p>
-                    <p className="text-[11px] text-stone-500">Hatfield route</p>
-                  </div>
-                </div>
-
-                {/* Step 4: Arrived */}
-                <div className="flex items-start gap-3 sm:flex-col sm:items-center sm:text-center opacity-70">
-                  <div className="w-8 h-8 rounded-full bg-stone-200 text-stone-600 flex items-center justify-center font-bold text-xs shrink-0">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-stone-700">Doorstep Delivery</p>
-                    <p className="text-[11px] text-stone-500">{selectedSlot.time}</p>
-                  </div>
-                </div>
-              </div>
+            <div className="p-6 sm:p-8 border-b border-stone-200">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-5">{cms.t('checkout.success.progress')}</h3>
+              <ol className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                {steps.map((s, i) => {
+                  const done = reached.includes(s) || (s === 'picking' && reached.some((r) => ['picked', 'paid'].includes(r)));
+                  return (
+                    <li key={s} className="flex items-start gap-3 sm:flex-col sm:items-center sm:text-center">
+                      <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${done ? 'bg-[#18181B] text-[#F5D103]' : 'bg-stone-100 text-stone-400'}`}>{done ? '✓' : i + 1}</span>
+                      <span className="text-xs font-bold text-[#18181B]">{stepLabels[i]}</span>
+                    </li>
+                  );
+                })}
+              </ol>
             </div>
-
-            {/* Delivery & Order Details Grid */}
-            <div className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-stone-200">
-              <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200/80">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-1">
-                  Delivery Destination
-                </span>
-                <p className="text-sm font-bold text-[#18181B]">{firstName} {lastName}</p>
-                <p className="text-xs text-stone-600 mt-0.5">{addressLine1}, {addressLine2}</p>
-                <p className="text-xs text-stone-600">{townCity}, {county} {postcode}</p>
-                <p className="text-xs text-stone-500 mt-2 font-medium">📞 {phone}</p>
-                <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-                  {isContactless ? '✓ Contactless delivery requested' : ''}
-                </p>
+            <div className="p-6 sm:p-8 space-y-3">
+              {success.lines.map((l) => (
+                <div key={l.id} className="flex items-center gap-3 text-sm">
+                  <Picture image={l.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-stone-50" />
+                  <span className="flex-1 min-w-0 truncate">{l.quantityOrdered != null ? `${l.quantityOrdered} × ` : `${formatGrams(l.weightOrderedGrams ?? 0)} `}{l.name}</span>
+                  <span className="font-bold">{formatMoney(l.estimatedTotal)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-3 border-t border-stone-200 font-extrabold">
+                <span>{cms.t('checkout.summary.total')}</span>
+                <span>{formatMoney(success.totals.estimated.total)}</span>
               </div>
-
-              <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200/80">
-                <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block mb-1">
-                  Scheduled Delivery Slot
-                </span>
-                <p className="text-sm font-bold text-[#18181B]">{selectedSlot.title}</p>
-                <p className="text-xs font-bold text-[#B45309] mt-0.5">{selectedSlot.time}</p>
-                <p className="text-xs text-stone-600 mt-2">
-                  Payment Method: <span className="font-bold text-[#18181B] uppercase">{paymentMethod}</span>
-                </p>
-                <p className="text-xs text-stone-600 mt-0.5">
-                  Total Paid: <span className="font-bold text-[#18181B]">£{placedOrderTotal.toFixed(2)}</span>
-                </p>
-                <p className="text-[11px] text-stone-500 mt-1">
-                  Confirmation receipt sent to <span className="font-bold">{email}</span>
-                </p>
-              </div>
+              {context?.email && <p className="text-xs text-stone-500">{cms.t('checkout.success.email_note', { email: context.email })}</p>}
             </div>
-
-            {/* Purchased Items Recap */}
-            <div className="p-6 sm:p-8">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-4">
-                Items in This Delivery ({placedOrderItems.reduce((acc, i) => acc + i.quantity, 0)})
-              </h3>
-
-              <div className="divide-y divide-stone-100 max-h-60 overflow-y-auto">
-                {placedOrderItems.map((item) => (
-                  <div key={item.product.id} className="py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={item.product.image}
-                        alt={item.product.name}
-                        className="w-12 h-12 rounded-xl object-cover bg-stone-100 border border-stone-200 shrink-0"
-                      />
-                      <div>
-                        <p className="text-xs font-bold text-[#18181B]">{item.product.name}</p>
-                        <p className="text-[11px] text-stone-500">
-                          Qty: {item.quantity} · £{item.product.price.toFixed(2)} / {item.product.unit}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-extrabold text-[#18181B]">
-                      £{(item.product.price * item.quantity).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="p-6 sm:p-8 bg-[#F8FAFC] border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-2 text-xs font-bold text-stone-600 hover:text-[#18181B] py-2.5 px-4 rounded-xl border border-stone-300 hover:bg-white transition-all cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Print Order Receipt</span>
-              </button>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => goToAccount()}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-xs font-bold text-stone-800 bg-white hover:bg-stone-100 py-3 px-5 rounded-full border border-stone-200 shadow-2xs transition-all cursor-pointer"
-                >
-                  <User className="w-4 h-4" />
-                  <span>View in My Account</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => goToShop()}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 text-xs font-extrabold text-[#18181B] bg-[#F5D103] hover:bg-[#E5A800] py-3 px-6 rounded-full shadow-md transition-all cursor-pointer hover:scale-102"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>Continue Shopping</span>
-                </button>
-              </div>
+            <div className="p-6 sm:p-8 bg-stone-50 flex flex-wrap gap-3 justify-center">
+              <button type="button" onClick={() => window.print()} className="px-5 py-2.5 rounded-full border border-stone-300 bg-white text-xs font-bold flex items-center gap-2 cursor-pointer"><Printer className="w-4 h-4" />{cms.t('checkout.success.print')}</button>
+              <button type="button" onClick={() => goToAccount(`orders/${success.orderNumber}`)} className="px-5 py-2.5 rounded-full bg-[#18181B] text-[#F5D103] text-xs font-bold cursor-pointer">{cms.t('checkout.success.view')}</button>
+              <button type="button" onClick={() => goToShop()} className="px-5 py-2.5 rounded-full bg-[#F5D103] text-[#18181B] text-xs font-bold cursor-pointer">{cms.t('checkout.success.continue')}</button>
             </div>
           </motion.div>
         </div>
@@ -352,784 +321,280 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // VIEW: EMPTY BASKET FALLBACK
-  // ---------------------------------------------------------------------------
-  if (items.length === 0) {
-    return (
-      <div className="min-h-[75vh] flex items-center justify-center px-4 py-16 bg-[#F8FAFC]">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-stone-200/90 shadow-sm text-center">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 text-[#B45309] flex items-center justify-center mx-auto mb-4 border border-amber-200/60 shadow-2xs">
-            <ShoppingBag className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-extrabold text-[#18181B] mb-2 tracking-tight">
-            Your Basket is Empty
-          </h2>
-          <p className="text-sm text-stone-600 mb-6 leading-relaxed">
-            Fill your basket with fresh farm vegetables, aromatic Indian spices, and pantry essentials to proceed with checkout.
-          </p>
-          <button
-            type="button"
-            onClick={() => goToShop({ category: 'all' })}
-            className="w-full py-3.5 px-6 rounded-full bg-[#F5D103] hover:bg-[#E5A800] text-[#18181B] font-extrabold text-sm shadow-md transition-all cursor-pointer"
-          >
-            Explore Fresh Produce &amp; Groceries
-          </button>
-        </div>
-      </div>
+  const shell = (children: React.ReactNode) => (
+    <div className="min-h-[70vh] bg-[#F8FAFC] py-12 px-4 flex items-center justify-center">
+      <div className="bg-white rounded-3xl border border-stone-200 p-8 sm:p-12 text-center max-w-md shadow-sm">{children}</div>
+    </div>
+  );
+
+  if (!items.length && !checkout) {
+    return shell(
+      <>
+        <div className="w-16 h-16 rounded-full bg-amber-100 text-[#B45309] flex items-center justify-center mx-auto mb-4"><ShoppingBag className="w-8 h-8" /></div>
+        <h1 className="font-serif-heading font-bold text-2xl text-[#18181B] mb-2">{cms.t('checkout.main.empty_title')}</h1>
+        <p className="text-sm text-[#737A72] mb-6">{cms.t('checkout.main.empty_text')}</p>
+        <button type="button" onClick={() => goToShop()} className="px-6 py-3 rounded-full bg-[#18181B] text-[#F5D103] text-xs font-bold cursor-pointer">{cms.t('checkout.main.empty_button')}</button>
+      </>,
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // MAIN VIEW: FULL 2-COLUMN CHECKOUT EXPERIENCE
-  // ---------------------------------------------------------------------------
+  if (authStatus !== 'loading' && !isCustomer) {
+    return shell(
+      <>
+        <div className="w-16 h-16 rounded-full bg-amber-100 text-[#B45309] flex items-center justify-center mx-auto mb-4"><Lock className="w-8 h-8" /></div>
+        <h1 className="font-serif-heading font-bold text-2xl text-[#18181B] mb-2">{cms.t('checkout.main.sign_in_title')}</h1>
+        <p className="text-sm text-[#737A72] mb-6">{cms.t('checkout.main.sign_in_text')}</p>
+        <button type="button" onClick={() => goToAccount('sign-in?next=/checkout')} className="px-6 py-3 rounded-full bg-[#18181B] text-[#F5D103] text-xs font-bold cursor-pointer">{cms.t('checkout.main.sign_in_button')}</button>
+      </>,
+    );
+  }
+
+  const paymentMode = checkout?.paymentMode;
+  const total = totals ? formatMoney(totals.total) : '';
+  const ageOk = !checkout?.ageCheck.required || checkout.ageCheck.confirmed;
+  const canPlace = !!checkout && !holdExpired && acceptTerms && ageOk && !busy && !processing;
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] py-6 sm:py-10">
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 max-w-7xl mx-auto">
-        {/* Top Header Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <button
-            type="button"
-            onClick={() => goToShop()}
-            className="inline-flex items-center gap-2 text-xs font-bold text-stone-600 hover:text-[#B45309] transition-colors cursor-pointer group self-start"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span>Return to Shopping</span>
-          </button>
-
-          {/* Secure Checkout Trust Pill */}
-          <div className="flex items-center gap-2 self-start sm:self-auto bg-white px-3.5 py-1.5 rounded-full border border-stone-200 shadow-2xs text-xs font-semibold text-[#18181B]">
-            <Lock className="w-3.5 h-3.5 text-emerald-600" />
-            <span>256-Bit Bank-Grade SSL Encrypted Checkout</span>
+    <div className="min-h-screen bg-[#F8FAFC] pb-24">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10">
+        <button type="button" onClick={() => goToShop()} className="inline-flex items-center gap-1.5 text-xs font-bold text-stone-600 hover:text-[#B45309] mb-4 cursor-pointer">
+          <ArrowLeft className="w-4 h-4" />{cms.t('checkout.main.back')}
+        </button>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-[#B45309] block mb-1">{cms.t('checkout.main.eyebrow')}</span>
+            <h1 className="font-serif-heading text-3xl sm:text-4xl font-bold text-[#18181B]">{cms.t('checkout.main.title')}</h1>
           </div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500"><ShieldCheck className="w-4 h-4 text-[#B45309]" />{cms.t('checkout.main.secure')}</span>
         </div>
+        {paymentMode === 'simulated' && (
+          <div className="mb-5 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs font-semibold text-[#92400E] flex items-center gap-2" role="note">
+            <AlertTriangle className="w-4 h-4 shrink-0" />{cms.t('checkout.main.test_mode')}
+          </div>
+        )}
+        {error && (
+          <div className="mb-5 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-sm font-semibold text-rose-700" role="alert">{error}</div>
+        )}
 
-        {/* Page Title */}
-        <div className="mb-8">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#B45309] block mb-1">
-            Fast &amp; Fresh Hertfordshire Delivery
-          </span>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#18181B] tracking-tight">
-            Checkout &amp; Delivery Details
-          </h1>
-        </div>
-
-        {/* 2-Column Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* ================================================================= */}
-          {/* LEFT COLUMN: CHECKOUT FORMS & OPTIONS (7 COLS)                   */}
-          {/* ================================================================= */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-            
-            {/* 1. EXPRESS CHECKOUT WALLET BANNER */}
-            <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm">
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-400 block mb-3">
-                Express 1-Click Checkout
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaymentMethod('apple');
-                    handlePlaceOrder({ preventDefault: () => {} } as React.FormEvent);
-                  }}
-                  className="w-full py-3 px-4 rounded-2xl bg-black hover:bg-stone-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
-                >
-                  <span>Pay with</span>
-                  <span className="text-base font-extrabold tracking-tight">Pay</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaymentMethod('google');
-                    handlePlaceOrder({ preventDefault: () => {} } as React.FormEvent);
-                  }}
-                  className="w-full py-3 px-4 rounded-2xl bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
-                >
-                  <span>Pay with</span>
-                  <span className="font-extrabold text-[#4285F4]">G</span>
-                  <span className="font-extrabold text-[#EA4335]">o</span>
-                  <span className="font-extrabold text-[#FBBC05]">o</span>
-                  <span className="font-extrabold text-[#4285F4]">g</span>
-                  <span className="font-extrabold text-[#34A853]">l</span>
-                  <span className="font-extrabold text-[#EA4335]">e</span>
-                  <span className="font-bold">Pay</span>
-                </button>
-              </div>
-
-              <div className="relative flex items-center justify-center mt-5">
-                <div className="border-t border-stone-200 w-full" />
-                <span className="bg-white px-3 text-[11px] font-bold text-stone-400 uppercase tracking-widest absolute">
-                  Or Enter Delivery Address
-                </span>
-              </div>
-            </div>
-
-            {/* 2. CUSTOMER CONTACT DETAILS */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200/90 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-7 h-7 rounded-full bg-[#18181B] text-white flex items-center justify-center text-xs font-bold">
-                  1
-                </div>
-                <h2 className="text-lg font-bold text-[#18181B]">
-                  Contact Information
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Email Address <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. name@example.co.uk"
-                      required
-                      className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                    <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  </div>
-                  <span className="text-[11px] text-stone-500 mt-1 block">
-                    We will send digital receipt &amp; order updates here.
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Mobile Phone <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 07700 900142"
-                      required
-                      className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                    <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  </div>
-                  <span className="text-[11px] text-stone-500 mt-1 block">
-                    For local driver arrival alerts &amp; gate notifications.
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="smsUpdates"
-                  checked={smsUpdates}
-                  onChange={(e) => setSmsUpdates(e.target.checked)}
-                  className="rounded border-stone-300 text-[#B45309] focus:ring-[#F5D103] cursor-pointer"
-                />
-                <label htmlFor="smsUpdates" className="text-xs text-stone-600 font-medium cursor-pointer">
-                  Send live SMS &amp; WhatsApp tracking updates when driver is 10 mins away.
-                </label>
-              </div>
-            </div>
-
-            {/* 3. DELIVERY ADDRESS */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200/90 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#18181B] text-white flex items-center justify-center text-xs font-bold">
-                    2
-                  </div>
-                  <h2 className="text-lg font-bold text-[#18181B]">
-                    Hertfordshire Delivery Address
-                  </h2>
-                </div>
-
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                  {postalCode}
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      First Name <span className="text-rose-500">*</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-5">
+            {/* 1. Address */}
+            <section className={card}>
+              <StepHeading n={1} title={cms.t('checkout.address.title')} done={!!address?.deliverable} icon={<MapPin className="w-4 h-4 text-[#B45309]" />} />
+              {addressesLoading ? (
+                <p className="text-sm text-stone-500">{cms.t('global.common.loading')}</p>
+              ) : (
+                <div className="space-y-2">
+                  {addresses.map((a) => (
+                    <label key={a.id} className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-colors ${a.id === addressId ? 'border-[#F5D103] bg-amber-50/50' : 'border-stone-200 hover:border-stone-300'}`}>
+                      <input type="radio" name="address" checked={a.id === addressId} onChange={() => chooseAddress(a.id)} className="mt-1 accent-[#F5D103]" />
+                      <span className="text-sm">
+                        <strong className="text-[#18181B]">{a.label}</strong> · {a.fullName}<br />
+                        <span className="text-stone-600">{[a.line1, a.line2, a.city, a.postcode].filter(Boolean).join(', ')}</span>
+                        {!a.deliverable && <span className="block text-xs font-semibold text-rose-600 mt-1">{cms.t('checkout.address.not_served')}</span>}
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
-                      className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      Last Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                      className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Address Line 1 <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={addressLine1}
-                    onChange={(e) => setAddressLine1(e.target.value)}
-                    placeholder="House / Building number and street"
-                    required
-                    className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Address Line 2 (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={addressLine2}
-                    onChange={(e) => setAddressLine2(e.target.value)}
-                    placeholder="Apartment, suite, unit, floor, building"
-                    className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      Town / City <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={townCity}
-                      onChange={(e) => setTownCity(e.target.value)}
-                      required
-                      className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      County
-                    </label>
-                    <input
-                      type="text"
-                      value={county}
-                      onChange={(e) => setCounty(e.target.value)}
-                      className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      Postcode <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={postcode}
-                      onChange={(e) => {
-                        const val = e.target.value.toUpperCase();
-                        setPostcode(val);
-                        onSelectPostalCode?.(val);
-                      }}
-                      required
-                      className="w-full text-xs font-bold uppercase bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                    Delivery Instructions / Safe Place
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={deliveryNotes}
-                    onChange={(e) => setDeliveryNotes(e.target.value)}
-                    placeholder="e.g. Leave in porch, ring bell twice, gate code 1234"
-                    className="w-full text-xs font-medium bg-[#F8FAFC] border border-stone-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40 focus:border-[#F5D103]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="contactless"
-                    checked={isContactless}
-                    onChange={(e) => setIsContactless(e.target.checked)}
-                    className="rounded border-stone-300 text-[#B45309] focus:ring-[#F5D103] cursor-pointer"
-                  />
-                  <label htmlFor="contactless" className="text-xs text-stone-700 font-semibold cursor-pointer">
-                    Contactless Delivery (Driver leaves basket on doorstep &amp; steps back 2m)
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* 4. CHOOSE DELIVERY SLOT */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200/90 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#18181B] text-white flex items-center justify-center text-xs font-bold">
-                    3
-                  </div>
-                  <h2 className="text-lg font-bold text-[#18181B]">
-                    Choose Delivery Window
-                  </h2>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs text-stone-500 font-medium">
-                  <Truck className="w-4 h-4 text-emerald-600" />
-                  <span>Refrigerated Van</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {deliverySlots.map((slot) => {
-                  const isSelected = selectedSlotId === slot.id;
-                  return (
-                    <div
-                      key={slot.id}
-                      onClick={() => {
-                        setSelectedSlotId(slot.id);
-                        soundEffects.playTap();
-                      }}
-                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-[#F5D103] bg-amber-50/40 shadow-xs'
-                          : 'border-stone-200 hover:border-stone-300 bg-white'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${slot.badgeColor}`}>
-                            {slot.badge}
-                          </span>
-                          <span className="text-xs font-bold text-[#18181B]">
-                            {slot.price === 0 ? 'FREE' : `£${slot.price.toFixed(2)}`}
-                          </span>
-                        </div>
-                        <h4 className="text-sm font-bold text-[#18181B] mb-0.5">{slot.title}</h4>
-                        <p className="text-xs text-[#B45309] font-bold">{slot.time}</p>
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-500">
-                        <span>{slot.note}</span>
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? 'border-[#B45309] bg-[#F5D103]' : 'border-stone-300'
-                        }`}>
-                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#18181B]" />}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 p-3 bg-emerald-50 rounded-2xl border border-emerald-200/80 flex items-start gap-3">
-                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-emerald-800 leading-relaxed font-medium">
-                  <strong>Temperature-Controlled Cold Chain:</strong> Fresh curry leaves, moringa, and dosa batter are transported in insulated refrigerated compartments kept below 4°C.
-                </p>
-              </div>
-            </div>
-
-            {/* 5. PAYMENT METHOD */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-stone-200/90 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-7 h-7 rounded-full bg-[#18181B] text-white flex items-center justify-center text-xs font-bold">
-                  4
-                </div>
-                <h2 className="text-lg font-bold text-[#18181B]">
-                  Payment Method
-                </h2>
-              </div>
-
-              {/* Payment selector tabs */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
-                {[
-                  { id: 'apple', label: 'Apple Pay', icon: 'Pay' },
-                  { id: 'card', label: 'Credit Card', icon: '💳 Card' },
-                  { id: 'google', label: 'Google Pay', icon: 'GPay' },
-                  { id: 'cod', label: 'Pay on Doorstep', icon: '💵 Doorstep' }
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => {
-                      setPaymentMethod(m.id as PaymentType);
-                      soundEffects.playTap();
-                    }}
-                    className={`py-3 px-2 rounded-2xl border-2 text-xs font-bold transition-all cursor-pointer text-center ${
-                      paymentMethod === m.id
-                        ? 'border-[#18181B] bg-stone-900 text-white shadow-xs'
-                        : 'border-stone-200 hover:border-stone-300 bg-white text-stone-700'
-                    }`}
-                  >
-                    <div className="font-extrabold text-sm mb-0.5">{m.icon}</div>
-                    <span>{m.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Card Inputs if Card chosen */}
-              {paymentMethod === 'card' && (
-                <div className="space-y-4 p-4 bg-stone-50 rounded-2xl border border-stone-200/80 animate-fadeIn">
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      Name on Card
-                    </label>
-                    <input
-                      type="text"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value)}
-                      placeholder="e.g. Priya Sharma"
-                      className="w-full text-xs font-medium bg-white border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        placeholder="4242 •••• •••• 4242"
-                        className="w-full text-xs font-mono font-bold bg-white border border-stone-200 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40"
-                      />
-                      <CreditCard className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                        Expiry Date
+                  ))}
+                  {addingAddress ? (
+                    <form onSubmit={addAddress} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl border border-stone-200 bg-stone-50/60">
+                      <label className="sm:col-span-2 text-xs font-semibold text-[#18181B]">{cms.t('checkout.address.full_name')}
+                        <input required autoComplete="name" className={field} value={draft.fullName} onChange={(e) => setDraft({ ...draft, fullName: e.target.value })} />
                       </label>
-                      <input
-                        type="text"
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                        placeholder="MM/YY"
-                        className="w-full text-xs font-mono font-medium bg-white border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                        Security CVC
+                      <label className="sm:col-span-2 text-xs font-semibold text-[#18181B]">{cms.t('checkout.address.line1')}
+                        <input required autoComplete="address-line1" placeholder={cms.t('checkout.address.line1_placeholder')} className={field} value={draft.line1} onChange={(e) => setDraft({ ...draft, line1: e.target.value })} />
                       </label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        value={cardCvc}
-                        onChange={(e) => setCardCvc(e.target.value)}
-                        placeholder="•••"
-                        className="w-full text-xs font-mono font-medium bg-white border border-stone-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#F5D103]/40"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="checkbox"
-                      id="saveCard"
-                      checked={saveCard}
-                      onChange={(e) => setSaveCard(e.target.checked)}
-                      className="rounded border-stone-300 text-[#B45309] focus:ring-[#F5D103] cursor-pointer"
-                    />
-                    <label htmlFor="saveCard" className="text-xs text-stone-600 font-medium cursor-pointer">
-                      Save card encrypted for faster 1-click orders in Hertfordshire
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === 'cod' && (
-                <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/80 text-xs text-stone-700 leading-relaxed font-medium">
-                  💵 <strong>Pay on Doorstep:</strong> You can pay the driver by Cash or Contactless Card terminal after you have personally inspected your produce freshness.
-                </div>
-              )}
-
-              {paymentMethod === 'apple' && (
-                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/80 text-xs text-stone-700 leading-relaxed font-medium flex items-center gap-3">
-                  <span className="text-lg"></span>
-                  <span>Instant biometric authorization with Apple Pay Touch ID / Face ID upon clicking Place Order.</span>
-                </div>
-              )}
-
-              {paymentMethod === 'google' && (
-                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/80 text-xs text-stone-700 leading-relaxed font-medium flex items-center gap-3">
-                  <span className="text-base font-bold text-[#4285F4]">G</span>
-                  <span>Fast, zero-contact checkout using your default Google Pay card.</span>
-                </div>
-              )}
-
-              {/* Large Place Order CTA */}
-              <div className="mt-6 pt-5 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={handlePlaceOrder}
-                  disabled={isProcessing}
-                  className="w-full py-4 px-8 rounded-full bg-[#F5D103] hover:bg-[#E5A800] text-[#18181B] font-extrabold text-base flex items-center justify-center gap-3 shadow-lg hover:shadow-xl transition-all cursor-pointer active:scale-[0.98] disabled:opacity-75 disabled:pointer-events-none"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-[#18181B] border-t-transparent rounded-full animate-spin" />
-                      <span>Securing &amp; Authorizing Payment...</span>
-                    </>
+                      <label className="sm:col-span-2 text-xs font-semibold text-[#18181B]">{cms.t('checkout.address.line2')}
+                        <input autoComplete="address-line2" placeholder={cms.t('checkout.address.line2_placeholder')} className={field} value={draft.line2} onChange={(e) => setDraft({ ...draft, line2: e.target.value })} />
+                      </label>
+                      <label className="text-xs font-semibold text-[#18181B]">{cms.t('checkout.address.city')}
+                        <input required autoComplete="address-level2" className={field} value={draft.city} onChange={(e) => setDraft({ ...draft, city: e.target.value })} />
+                      </label>
+                      <label className="text-xs font-semibold text-[#18181B]">{cms.t('checkout.address.postcode')}
+                        <input required autoComplete="postal-code" className={`${field} uppercase`} value={draft.postcode} onChange={(e) => setDraft({ ...draft, postcode: e.target.value.toUpperCase() })} />
+                      </label>
+                      <label className="sm:col-span-2 text-xs font-semibold text-[#18181B]">{cms.t('checkout.address.phone')}
+                        <input type="tel" autoComplete="tel" placeholder={cms.t('checkout.address.phone_placeholder')} className={field} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+                      </label>
+                      <div className="sm:col-span-2 flex gap-2">
+                        <button type="submit" disabled={busy} className="px-5 py-2.5 rounded-full bg-[#18181B] text-[#F5D103] text-xs font-bold cursor-pointer disabled:opacity-60">{cms.t('checkout.address.save')}</button>
+                        <button type="button" onClick={() => setAddingAddress(false)} className="px-5 py-2.5 rounded-full border border-stone-300 text-xs font-bold cursor-pointer">{cms.t('checkout.address.cancel')}</button>
+                      </div>
+                    </form>
                   ) : (
-                    <>
-                      <Lock className="w-4 h-4 stroke-[2.5]" />
-                      <span>Pay &amp; Place Order (£{grandTotal.toFixed(2)})</span>
-                    </>
+                    <button type="button" onClick={() => setAddingAddress(true)} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#B45309] hover:underline cursor-pointer pt-1"><Plus className="w-3.5 h-3.5" />{cms.t('checkout.address.add')}</button>
                   )}
-                </button>
+                </div>
+              )}
+            </section>
 
-                <p className="text-[11px] text-stone-400 text-center mt-3 font-medium">
-                  By clicking &ldquo;Pay &amp; Place Order&rdquo;, you agree to Varam Foods&apos; 100% Freshness Guarantee and local terms of supply.
-                </p>
-              </div>
-            </div>
-
-          </div>
-
-          {/* ================================================================= */}
-          {/* RIGHT COLUMN: STICKY ORDER SUMMARY & ITEMS (5 COLS)               */}
-          {/* ================================================================= */}
-          <div className="lg:col-span-5 xl:col-span-4 sticky top-20 space-y-5">
-            
-            {/* Basket Items Summary Box */}
-            <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-sm">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
-                <h3 className="font-extrabold text-base text-[#18181B]">
-                  Order Summary
-                </h3>
-                <span className="text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-full">
-                  {items.reduce((acc, i) => acc + i.quantity, 0)} Items
-                </span>
-              </div>
-
-              {/* Items Scrollable List */}
-              <div className="divide-y divide-stone-100 max-h-72 overflow-y-auto pr-1 no-scrollbar space-y-2">
-                {items.map((item) => (
-                  <div key={item.product.id} className="pt-2 pb-2 flex items-center justify-between gap-3 group">
-                    <img
-                      src={item.product.image}
-                      alt={item.product.name}
-                      className="w-14 h-14 rounded-2xl object-cover bg-stone-50 border border-stone-200 shrink-0"
-                    />
-
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-xs font-bold text-[#18181B] truncate">
-                        {item.product.name}
-                      </h4>
-                      <p className="text-[11px] text-stone-500">
-                        £{item.product.price.toFixed(2)} / {item.product.unit}
-                      </p>
-
-                      {/* Stepper */}
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <div className="flex items-center bg-stone-100 rounded-lg p-0.5 border border-stone-200">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                            className="w-5 h-5 rounded-md bg-white text-stone-700 flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-stone-200 cursor-pointer"
-                          >
-                            <Minus className="w-2.5 h-2.5" />
-                          </button>
-                          <span className="text-xs font-bold px-2 text-[#18181B]">
-                            {item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => updateQuantity(item.product.id, item.quantity + 1, e.currentTarget)}
-                            className="w-5 h-5 rounded-md bg-[#F5D103] text-[#18181B] flex items-center justify-center text-xs font-bold shadow-2xs hover:bg-[#E5A800] cursor-pointer"
-                          >
-                            <Plus className="w-2.5 h-2.5" />
-                          </button>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => removeFromCart(item.product.id)}
-                          className="text-stone-400 hover:text-rose-500 p-1 cursor-pointer transition-colors"
-                          title="Remove item"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+            {/* 2. Slot */}
+            <section className={card}>
+              <StepHeading n={2} title={cms.t('checkout.slot.title')} done={!!checkout && !holdExpired} icon={<Truck className="w-4 h-4 text-[#B45309]" />} />
+              {!address?.deliverable ? (
+                <p className="text-sm text-stone-500">{cms.t('checkout.slot.pick_address_first')}</p>
+              ) : slotsLoading ? (
+                <p className="text-sm text-stone-500">{cms.t('global.common.loading')}</p>
+              ) : !slots.length ? (
+                <p className="text-sm text-stone-500">{cms.t('checkout.slot.none')}</p>
+              ) : (
+                <div className="space-y-4">
+                  {slotsByDay.map(([day, list]) => (
+                    <div key={day}>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-stone-500 mb-2">{day}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {list.map((s) => {
+                          const selected = checkout?.slot?.id === s.id && !holdExpired;
+                          const full = s.availability === 'full' && !selected;
+                          return (
+                            <button
+                              key={s.id}
+                              type="button"
+                              disabled={full || busy}
+                              onClick={() => void chooseSlot(s)}
+                              aria-pressed={selected}
+                              className={`text-left p-3 rounded-2xl border transition-all cursor-pointer disabled:cursor-not-allowed ${selected ? 'border-[#F5D103] bg-amber-50/60 shadow-xs' : full ? 'border-stone-100 bg-stone-50 text-stone-400' : 'border-stone-200 hover:border-stone-300 bg-white'}`}
+                            >
+                              <span className="block text-sm font-bold text-[#18181B]">{s.timeLabel}</span>
+                              {s.serviceLabel && <span className="block text-[11px] text-stone-500">{s.serviceLabel}</span>}
+                              <span className="block text-[11px] font-semibold mt-1">
+                                {full ? cms.t('checkout.slot.full')
+                                  : s.availability === 'limited' ? <span className="text-[#B45309]">{cms.t('checkout.slot.limited', { count: s.remaining })}</span>
+                                  : s.surcharge ? cms.t('checkout.slot.surcharge', { amount: formatMoney(s.surcharge) }) : ''}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="text-xs font-extrabold text-[#18181B]">
-                        £{(item.product.price * item.quantity).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Free delivery tracker */}
-              <div className="mt-4 pt-3 border-t border-stone-100">
-                <div className="flex items-center justify-between text-xs font-bold mb-1">
-                  <span className="text-stone-600 flex items-center gap-1">
-                    <Truck className="w-3.5 h-3.5 text-[#B45309]" />
-                    <span>Free Delivery Threshold</span>
-                  </span>
-                  <span className="text-[#B45309]">
-                    {amountNeededForFreeDelivery <= 0
-                      ? '✓ Unlocked'
-                      : `£${amountNeededForFreeDelivery.toFixed(2)} to go`}
-                  </span>
+                  ))}
+                  {checkout && (
+                    <p className={`text-xs font-semibold flex items-center gap-1.5 ${holdExpired ? 'text-rose-600' : 'text-[#B45309]'}`}>
+                      <Clock className="w-3.5 h-3.5" />
+                      {holdExpired ? cms.t('checkout.slot.expired') : cms.t('checkout.slot.held', { time: new Date(holdEnds).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' }) })}
+                    </p>
+                  )}
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-stone-100 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#F5D103] to-[#B45309] transition-all duration-300"
-                    style={{
-                      width: `${Math.min(100, (subtotal / freeDeliveryThreshold) * 100)}%`
-                    }}
-                  />
-                </div>
-              </div>
+              )}
+            </section>
 
-              {/* Promo Coupon Form */}
-              <div className="mt-4 pt-4 border-t border-stone-100">
-                {appliedCoupon ? (
-                  <div className="flex items-center justify-between bg-amber-50 p-2.5 rounded-xl border border-amber-200">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#B45309]" />
-                      <span className="text-xs font-bold text-[#B45309]">
-                        Code {appliedCoupon} applied (20% Off)
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removeCoupon}
-                      className="text-xs font-bold text-stone-500 hover:text-stone-800 underline cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleApplyPromo} className="space-y-2">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCodeInput}
-                        onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                        placeholder="Voucher or Promo code"
-                        className="flex-1 text-xs font-bold uppercase bg-[#F8FAFC] border border-stone-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#F5D103]"
-                      />
-                      <button
-                        type="submit"
-                        className="py-2 px-4 rounded-xl bg-[#18181B] hover:bg-stone-800 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                      >
-                        Apply
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[11px] text-stone-500">
-                      <span>Tip: Try</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          applyCoupon('FRESH20');
-                          soundEffects.playCoupon();
-                        }}
-                        className="font-extrabold text-[#B45309] underline hover:text-[#92400E] cursor-pointer"
-                      >
-                        FRESH20
-                      </button>
-                      <span>for 20% off your basket</span>
-                    </div>
-
-                    {promoError && (
-                      <p className="text-[11px] text-rose-600 font-semibold">{promoError}</p>
-                    )}
-                  </form>
-                )}
-              </div>
-
-              {/* Breakdown totals */}
-              <div className="mt-5 pt-4 border-t border-stone-100 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-stone-600">
-                  <span>Basket Subtotal</span>
-                  <span className="font-bold text-[#18181B]">£{subtotal.toFixed(2)}</span>
-                </div>
-
-                {discountAmount > 0 && (
-                  <div className="flex items-center justify-between text-emerald-700 font-bold">
-                    <span>Voucher Discount</span>
-                    <span>-£{discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-stone-600">
-                  <span>Delivery ({selectedSlot.title})</span>
-                  <span className="font-bold text-[#18181B]">
-                    {deliveryFee === 0 ? (
-                      <span className="text-emerald-700 font-bold uppercase">Free</span>
+            {/* 3. Preferences */}
+            {checkout && (
+              <section className={card}>
+                <StepHeading n={3} title={cms.t('checkout.details.title')} done={ageOk} icon={<Leaf className="w-4 h-4 text-[#B45309]" />} />
+                <label className="block text-xs font-semibold text-[#18181B] mb-4">{cms.t('checkout.details.notes')}
+                  <textarea rows={2} maxLength={500} placeholder={cms.t('checkout.details.notes_placeholder')} className={`${field} mt-1`} value={notes}
+                    onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== (checkout.deliveryNotes ?? '') && void update({ deliveryNotes: notes })} />
+                </label>
+                <fieldset className="mb-2">
+                  <legend className="text-xs font-semibold text-[#18181B] mb-2">{cms.t('checkout.details.subs')}</legend>
+                  {(['allow', 'dont_allow'] as const).map((v) => (
+                    <label key={v} className="flex items-center gap-2 text-sm text-stone-700 mb-1.5 cursor-pointer">
+                      <input type="radio" name="subs" checked={checkout.substitutionDefault === v} onChange={() => void update({ substitutionDefault: v })} className="accent-[#F5D103]" />
+                      {v === 'allow' ? cms.t('checkout.details.subs_allow') : cms.t('checkout.details.subs_dont')}
+                    </label>
+                  ))}
+                </fieldset>
+                {checkout.ageCheck.required && (
+                  <div className="mt-4 p-4 rounded-2xl border border-amber-200 bg-amber-50/60">
+                    <p className="text-sm font-bold text-[#18181B] mb-1">{cms.t('checkout.details.age_title')}</p>
+                    <p className="text-xs text-stone-600 mb-3">{cms.t('checkout.details.age_text', { age: checkout.ageCheck.minAge ?? '' })}</p>
+                    {checkout.ageCheck.confirmed ? (
+                      <p className="text-xs font-bold text-[#92400E]">{cms.t('checkout.details.age_confirmed')}</p>
                     ) : (
-                      `£${deliveryFee.toFixed(2)}`
+                      <div className="flex items-end gap-2">
+                        <label className="text-xs font-semibold text-[#18181B]">{cms.t('checkout.details.age_label')}
+                          <input type="date" className={field} value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} />
+                        </label>
+                        <button type="button" disabled={!dob || busy} onClick={() => void update({ dateOfBirth: dob })} className="px-4 py-2.5 rounded-xl bg-[#18181B] text-[#F5D103] text-xs font-bold cursor-pointer disabled:opacity-50">{cms.t('checkout.details.age_confirm')}</button>
+                      </div>
                     )}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-stone-600">
-                  <span>100% Compostable Packaging</span>
-                  <span className="text-emerald-700 font-bold uppercase">Included (£0.00)</span>
-                </div>
-
-                <div className="pt-3 border-t border-stone-200 flex items-baseline justify-between">
-                  <div>
-                    <span className="text-sm font-extrabold text-[#18181B] block">Total to Pay</span>
-                    <span className="text-[10px] text-stone-400">Includes all applicable UK VAT</span>
                   </div>
-                  <span className="text-2xl font-extrabold text-[#18181B] tracking-tight">
-                    £{grandTotal.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
+                )}
+              </section>
+            )}
 
-            {/* Freshness & Quality Assurance Box */}
-            <div className="bg-stone-50 rounded-3xl p-5 border border-stone-200/80 space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>The Varam Foods Promise</span>
-              </h4>
-
-              <div className="space-y-2 text-xs text-stone-600">
-                <div className="flex items-start gap-2">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  <span><strong>100% Freshness Guarantee:</strong> Any bruised or unsatisfactory produce replaced or refunded immediately.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  <span><strong>Zero Air-Miles:</strong> Greens sourced from Hertfordshire, Kent &amp; Suffolk farms.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-emerald-600 font-bold">✓</span>
-                  <span><strong>Contactless Driver:</strong> Delivered straight to your doorstep safely.</span>
-                </div>
-              </div>
-            </div>
-
+            {/* 4. Payment */}
+            {checkout && (
+              <section className={card}>
+                <StepHeading n={4} title={cms.t('checkout.payment.title')} icon={<Lock className="w-4 h-4 text-[#B45309]" />} />
+                <p className="text-xs text-stone-600 mb-4">{paymentMode === 'simulated' ? cms.t('checkout.payment.simulated') : cms.t('checkout.payment.card_note')}</p>
+                {checkout.authAmount && checkout.authAmount.amount > checkout.cart.totals.total.amount && (
+                  <p className="text-xs text-stone-500 mb-4">{cms.t('checkout.payment.auth_note', { amount: formatMoney(checkout.authAmount) })}</p>
+                )}
+                <label className="flex items-start gap-2.5 text-xs text-stone-700 mb-4 cursor-pointer">
+                  <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[#F5D103]" />
+                  <span><InlineText text={cms.t('checkout.payment.terms')} /></span>
+                </label>
+                {processing && <p className="text-xs font-semibold text-[#B45309] mb-3" aria-live="polite">{cms.t('checkout.payment.processing')}</p>}
+                {paymentMode === 'stripe' ? (
+                  stripeKey ? (
+                    <Elements stripe={getStripe()} options={{ mode: 'payment', amount: (checkout.authAmount ?? checkout.cart.totals.total).amount, currency: checkout.cart.currency.toLowerCase(), captureMethod: 'manual', appearance: { theme: 'stripe', variables: { colorPrimary: '#18181B', borderRadius: '12px' } } }}>
+                      <StripePay label={cms.t('checkout.payment.pay', { total })} disabled={!canPlace} onPlace={(confirm) => void place(confirm)} />
+                    </Elements>
+                  ) : (
+                    <p className="text-sm font-semibold text-rose-600">{cms.t('checkout.payment.unavailable')}</p>
+                  )
+                ) : (
+                  <button type="button" disabled={!canPlace} onClick={() => void place()} className="w-full py-4 rounded-full bg-[#18181B] hover:bg-[#E5A800] hover:text-[#18181B] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Lock className="w-4 h-4" />{cms.t('checkout.payment.place', { total })}
+                  </button>
+                )}
+              </section>
+            )}
           </div>
 
+          {/* Summary */}
+          <aside className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+            <div className={card}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif-heading font-bold text-lg text-[#18181B]">{cms.t('checkout.summary.title')}</h2>
+                <button type="button" onClick={() => setIsCartOpen(true)} className="text-xs font-bold text-[#B45309] hover:underline cursor-pointer">{cms.t('checkout.summary.edit')}</button>
+              </div>
+              <ul className="divide-y divide-stone-100 max-h-72 overflow-y-auto mb-4" data-lenis-prevent="true">
+                {(view?.lines ?? []).map((l) => (
+                  <li key={l.id} className="py-2.5 flex items-center gap-3 text-sm">
+                    <Picture image={l.product.image} alt="" className="w-11 h-11 rounded-lg object-cover bg-stone-50 border border-stone-100" />
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-semibold text-[#18181B] truncate">{l.product.name}</span>
+                      <span className="text-xs text-stone-500">{l.quantity != null ? `× ${l.quantity}` : formatGrams(l.weightGrams ?? 0)}</span>
+                    </span>
+                    <span className="font-bold">{formatMoney(l.lineTotal)}</span>
+                  </li>
+                ))}
+              </ul>
+              {totals && (
+                <div className="space-y-1.5 text-sm text-stone-600 border-t border-stone-200 pt-3">
+                  <div className="flex justify-between"><span>{cms.t('checkout.summary.subtotal')}</span><span className="font-semibold text-[#18181B]">{formatMoney(totals.itemsSubtotal)}</span></div>
+                  {(view?.appliedPromotions ?? []).filter((p) => p.type !== 'free_delivery').map((p) => (
+                    <div key={p.promotionId} className="flex justify-between text-[#92400E] font-semibold"><span className="truncate pr-2">{p.label}</span><span>-{formatMoney(p.discount)}</span></div>
+                  ))}
+                  {totals.depositTotal.amount > 0 && <div className="flex justify-between"><span>{cms.t('basket.drawer.deposit')}</span><span>{formatMoney(totals.depositTotal)}</span></div>}
+                  <div className="flex justify-between">
+                    <span>{cms.t('checkout.summary.delivery')}{selectedSlot ? ` · ${selectedSlot.dayLabel} ${selectedSlot.timeLabel}` : ''}</span>
+                    <span className="font-semibold text-[#18181B]">{totals.deliveryFee.amount === 0 ? cms.t('checkout.summary.free') : formatMoney(totals.deliveryFee)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-extrabold text-[#18181B] pt-2 border-t border-stone-200">
+                    <span>{cms.t('checkout.summary.total')}</span><span>{total}</span>
+                  </div>
+                  <p className="text-[11px] text-stone-400">{cms.t('checkout.summary.vat', { vat: formatMoney(totals.vatTotal) })}</p>
+                  {totals.isEstimate && <p className="text-[11px] text-stone-500">{cms.t('checkout.summary.estimate')}</p>}
+                </div>
+              )}
+              {!checkout && onOpenLocationModal && !cart?.postcode && (
+                <button type="button" onClick={onOpenLocationModal} className="mt-3 text-xs font-bold text-[#B45309] hover:underline cursor-pointer">{cms.t('global.header.location_title')}</button>
+              )}
+            </div>
+            {cms.get('checkout.summary.promises').length > 0 && (
+              <div className={`${card} text-xs`}>
+                <h3 className="font-bold text-sm text-[#18181B] mb-3">{cms.t('checkout.summary.promise_title')}</h3>
+                <ul className="space-y-2 text-stone-600">
+                  {cms.get('checkout.summary.promises').map((p, i) => (
+                    <li key={i}><strong className="text-[#18181B]">{p.title}</strong> {p.text}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </aside>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { Product } from '../types';
+import type { LegacyProduct as Product } from './legacyTypes';
 
 export const freshPicksProducts: Product[] = [
   {

@@ -1,4 +1,4 @@
-import type { Review } from '../types';
+import type { LegacyReview as Review } from './legacyTypes';
 
 export const customerReviews: Review[] = [
   {

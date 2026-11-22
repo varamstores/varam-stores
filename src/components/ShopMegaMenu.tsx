@@ -1,47 +1,34 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ChevronRight, 
-  ArrowRight, 
-  Sparkles, 
-  Tag,
-  ShieldCheck,
-  Truck
-} from 'lucide-react';
-import { categories } from '../data/categories';
+import { ChevronRight, ArrowRight, Sparkles, Tag } from 'lucide-react';
+import { useCategories, useProducts } from '../lib/catalogue';
+import { useCms } from '../cms/CmsProvider';
+import { CmsA, InlineText, Picture } from '../cms/components';
+import { CmsIcon } from '../cms/icons';
 
 interface ShopMegaMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectCategory: (categoryId: string) => void;
+  onSelectCategory: (slug: string) => void;
   onViewAllShop: () => void;
 }
 
-export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
-  isOpen,
-  onClose,
-  onSelectCategory,
-  onViewAllShop,
-}) => {
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({ isOpen, onClose, onSelectCategory, onViewAllShop }) => {
+  const cms = useCms();
+  const { data: categories = [] } = useCategories();
+  const { data: listing } = useProducts({ limit: 1 }, isOpen);
+  const productCount = listing?.total ?? 0;
+  const promo = cms.t('global.shop_menu.promo');
 
-  // Close on Escape key
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
-  const handleCategoryClick = (catId: string) => {
-    onSelectCategory(catId);
+  const pick = (slug: string) => {
+    onSelectCategory(slug);
     onClose();
   };
 
@@ -49,7 +36,6 @@ export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Subtle Page Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -60,7 +46,6 @@ export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
             aria-hidden="true"
           />
 
-          {/* Full-Width Shop Mega Menu Attached Beneath Header */}
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -68,32 +53,24 @@ export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="absolute top-full left-0 right-0 w-full bg-white border-b border-stone-200 shadow-2xl z-50"
           >
-            {/* Scrollable Container with data-lenis-prevent */}
-            <div
-              ref={scrollAreaRef}
-              data-lenis-prevent="true"
-              style={{ overscrollBehavior: 'contain' }}
-              className="w-full max-h-[82vh] overflow-y-auto py-6 sm:py-7 px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12"
-            >
+            <div data-lenis-prevent="true" style={{ overscrollBehavior: 'contain' }} className="w-full max-h-[82vh] overflow-y-auto py-6 sm:py-7 px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
               <div className="w-full">
-                {/* Header Row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-6 border-b border-stone-200 gap-3">
                   <div className="flex items-center gap-3">
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-[#B45309] text-[11px] font-bold uppercase tracking-wider border border-amber-200/60">
                       <Sparkles className="w-3 h-3 text-[#B45309]" />
-                      <span>All Aisles &amp; Departments</span>
+                      <span>{cms.t('global.shop_menu.eyebrow')}</span>
                     </div>
-                    <h3 className="font-sans font-extrabold text-lg sm:text-xl text-[#18181B] tracking-tight">
-                      Explore All Categories
-                    </h3>
+                    <h3 className="font-sans font-extrabold text-lg sm:text-xl text-[#18181B] tracking-tight">{cms.t('global.shop_menu.title')}</h3>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="hidden md:flex items-center gap-1.5 text-xs text-stone-500 font-medium">
-                      <Tag className="w-3.5 h-3.5 text-[#B45309]" />
-                      <span>Use code <strong className="text-[#B45309]">FRESH20</strong> for 20% off</span>
-                    </div>
-
+                    {promo && (
+                      <div className="hidden md:flex items-center gap-1.5 text-xs text-stone-500 font-medium">
+                        <Tag className="w-3.5 h-3.5 text-[#B45309]" />
+                        <span><InlineText text={promo} strongClass="text-[#B45309]" /></span>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -102,47 +79,32 @@ export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
                       }}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-[#18181B] hover:bg-[#E5A800] bg-[#F5D103] px-4 py-2 rounded-full shadow-2xs transition-colors cursor-pointer shrink-0"
                     >
-                      <span>View Full Catalogue (10,000+ Items)</span>
+                      <span>{cms.t('global.shop_menu.view_all', { count: productCount })}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                {/* 12 Categories Clean Grid: 4 Columns on lg/xl, 3 on md, 2 on sm */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
                   {categories.map((cat) => (
                     <button
                       key={cat.id}
                       type="button"
-                      onClick={() => handleCategoryClick(cat.id)}
+                      onClick={() => pick(cat.slug)}
                       className="group text-left p-3.5 sm:p-4 rounded-2xl border border-stone-200 bg-white hover:border-[#F5D103] hover:shadow-md transition-all duration-200 flex items-center gap-3.5 cursor-pointer shadow-2xs"
                     >
-                      {/* Category Image Box */}
                       <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white flex items-center justify-center p-1.5 overflow-hidden shrink-0 border border-stone-200 group-hover:scale-105 transition-transform duration-200">
-                        <img
-                          src={cat.image}
-                          alt={cat.name}
-                          loading="lazy"
-                          className="w-full h-full object-contain"
-                        />
+                        <Picture image={cat.image} loading="lazy" className="w-full h-full object-contain" />
                       </div>
-
-                      {/* Category Information */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <h4 className="text-sm sm:text-[15px] font-extrabold text-[#18181B] group-hover:text-[#B45309] transition-colors truncate">
-                            {cat.name}
-                          </h4>
+                          <h4 className="text-sm sm:text-[15px] font-extrabold text-[#18181B] group-hover:text-[#B45309] transition-colors truncate">{cat.name}</h4>
                           <ChevronRight className="w-4 h-4 text-[#18181B]/60 group-hover:text-[#B45309] group-hover:translate-x-0.5 transition-all shrink-0" />
                         </div>
-
-                        <p className="text-xs font-bold text-[#B45309] mt-0.5">
-                          {cat.itemCount}
-                        </p>
-
-                        {cat.subcategories && cat.subcategories.length > 0 && (
+                        <p className="text-xs font-bold text-[#B45309] mt-0.5">{cms.t('global.shop_menu.item_count', { count: cat.productCount })}</p>
+                        {cat.children.length > 0 && (
                           <p className="text-xs font-medium text-[#18181B]/75 group-hover:text-[#18181B] truncate mt-1">
-                            {cat.subcategories.slice(0, 2).join(' • ')}
+                            {cat.children.slice(0, 2).map((c) => c.name).join(' • ')}
                           </p>
                         )}
                       </div>
@@ -150,69 +112,34 @@ export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
                   ))}
                 </div>
 
-                {/* Quick Shortcuts Pill Bar */}
-                <div className="mt-6 pt-4 border-t border-stone-200 flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider mr-1">
-                    Popular Departments:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick('vegetables-fruits')}
-                    className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
-                  >
-                    🥬 Fresh Vegetables &amp; Fruits
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick('rice-millets')}
-                    className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
-                  >
-                    🍚 Sona Masoori &amp; Basmati Rice
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick('edible-oils')}
-                    className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
-                  >
-                    🥥 Cold-Pressed Oils &amp; Desi Ghee
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick('atta-flours')}
-                    className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
-                  >
-                    🌾 Chakki Fresh Atta &amp; Flours
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick('spices-masala')}
-                    className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
-                  >
-                    🌶️ Spices &amp; Authentic Masalas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCategoryClick('sweets-snacks')}
-                    className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
-                  >
-                    🥮 Sweets &amp; Savoury Snacks
-                  </button>
-                </div>
+                {cms.get('global.shop_menu.popular').length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-stone-200 flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider mr-1">{cms.t('global.shop_menu.popular_label')}</span>
+                    {cms.get('global.shop_menu.popular').map((p, i) => (
+                      <CmsA
+                        key={i}
+                        link={p.href}
+                        onClick={onClose}
+                        className="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 hover:bg-[#F5D103] hover:text-[#18181B] hover:border-[#F5D103] text-xs font-bold text-[#18181B] shadow-2xs transition-all cursor-pointer"
+                      >
+                        {p.label}
+                      </CmsA>
+                    ))}
+                  </div>
+                )}
 
-                {/* Bottom Assurance Bar */}
                 <div className="mt-5 pt-4 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#18181B]">
                   <div className="flex items-center gap-4 flex-wrap">
-                    <span className="flex items-center gap-1.5 font-semibold text-[#18181B]">
-                      <Truck className="w-4 h-4 text-[#B45309]" />
-                      Free same-day delivery over £50 across Hertfordshire
-                    </span>
-                    <span className="text-stone-300 hidden sm:inline">|</span>
-                    <span className="flex items-center gap-1.5 font-semibold text-[#18181B]">
-                      <ShieldCheck className="w-4 h-4 text-[#B45309]" />
-                      Cold-chain freshness guarantee on every order
-                    </span>
+                    {cms.get('global.shop_menu.assurances').map((a, i) => (
+                      <React.Fragment key={i}>
+                        {i > 0 && <span className="text-stone-300 hidden sm:inline">|</span>}
+                        <span className="flex items-center gap-1.5 font-semibold text-[#18181B]">
+                          <CmsIcon name={a.icon} className="w-4 h-4 text-[#B45309]" />
+                          {a.text}
+                        </span>
+                      </React.Fragment>
+                    ))}
                   </div>
-
                   <button
                     type="button"
                     onClick={() => {
@@ -221,7 +148,7 @@ export const ShopMegaMenu: React.FC<ShopMegaMenuProps> = ({
                     }}
                     className="text-xs font-extrabold text-[#B45309] hover:text-[#D97706] hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    <span>Browse All 10,000+ Products</span>
+                    <span>{cms.t('global.shop_menu.browse_all', { count: productCount })}</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>

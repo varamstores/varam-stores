@@ -175,7 +175,7 @@ export const animateFlyToCart = (
 
   // Product thumbnail image
   const img = document.createElement('img');
-  img.src = product.image;
+  img.src = product.image?.url ?? '';
   img.alt = product.name;
   img.style.cssText = `
     width: 100%;

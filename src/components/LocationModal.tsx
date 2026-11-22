@@ -1,59 +1,60 @@
-import React, { useState } from 'react';
-import { X, MapPin, Check, Clock } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, MapPin, Clock, Check } from 'lucide-react';
 import { AnimatedModal } from './transitions/AnimatedModal';
+import { useCart } from '../context/CartContext';
+import { usePopularAreas } from '../lib/catalogue';
+import { useDeliverySlots } from '../lib/delivery';
+import { useCms } from '../cms/CmsProvider';
+import { InlineText } from '../cms/components';
+import { useErrorMessage } from '../cms/hooks';
+import { formatMoney } from '../lib/money';
 
 interface LocationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedPostalCode: string;
-  onSelectPostalCode: (code: string) => void;
 }
 
-export const LocationModal: React.FC<LocationModalProps> = ({
-  isOpen,
-  onClose,
-  selectedPostalCode,
-  onSelectPostalCode,
-}) => {
-  const [customPostal, setCustomPostal] = useState('');
-  const [selectedSlot, setSelectedSlot] = useState('Today, 6:00 PM - 8:00 PM');
+/** Postcode entry: prices delivery for the area, checks stock there and shows the next delivery windows. */
+export const LocationModal: React.FC<LocationModalProps> = ({ isOpen, onClose }) => {
+  const cms = useCms();
+  const errorMessage = useErrorMessage();
+  const { cart, setPostcode, showToast } = useCart();
+  const { data: areas = [] } = usePopularAreas();
+  const [input, setInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { data: slots = [], isLoading: slotsLoading } = useDeliverySlots(isOpen ? cart?.postcode : null, 3);
 
-  const popularLocations = [
-    { name: 'Hatfield', code: 'Hatfield, AL10' },
-    { name: 'St Albans', code: 'St Albans, AL1' },
-    { name: 'Welwyn Garden City', code: 'Welwyn, AL8' },
-    { name: 'Hertford', code: 'Hertford, SG14' },
-    { name: 'North London', code: 'London, N10' },
-  ];
+  useEffect(() => {
+    if (isOpen) {
+      setInput(cart?.postcode ?? '');
+      setError(null);
+    }
+  }, [isOpen, cart?.postcode]);
 
-  const deliverySlots = [
-    'Today, 6:00 PM - 8:00 PM (Evening Express)',
-    'Tomorrow, 8:00 AM - 10:00 AM (Morning Fresh)',
-    'Tomorrow, 2:00 PM - 4:00 PM (Afternoon Standard)',
-  ];
-
-  const handleCustomSubmit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (customPostal.trim()) {
-      onSelectPostalCode(customPostal.trim().toUpperCase());
-      onClose();
+    if (!input.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const view = await setPostcode(input);
+      showToast(cms.t('global.toasts.postcode_set', { postcode: view.postcode ?? input.toUpperCase() }));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <AnimatedModal
-      isOpen={isOpen}
-      onClose={onClose}
-      maxWidth="max-w-md"
-      className="p-6 sm:p-8"
-      ariaLabel="Delivery Location Dialog"
-    >
-      {/* Close Button */}
+    <AnimatedModal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md" className="p-6 sm:p-8" ariaLabel={cms.t('basket.location.title')}>
       <button
         type="button"
         onClick={onClose}
         className="absolute top-4 right-4 w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 flex items-center justify-center transition-colors cursor-pointer"
-        aria-label="Close delivery location dialog"
+        aria-label={cms.t('basket.location.close_aria')}
       >
         <X className="w-4 h-4" />
       </button>
@@ -62,93 +63,101 @@ export const LocationModal: React.FC<LocationModalProps> = ({
         <div className="w-8 h-8 rounded-full bg-amber-100 text-[#B45309] flex items-center justify-center">
           <MapPin className="w-4 h-4" />
         </div>
-        <h3 className="font-serif-heading text-xl font-bold text-[#18181B]">
-          Choose Delivery Location
-        </h3>
+        <h3 className="font-serif-heading text-xl font-bold text-[#18181B]">{cms.t('basket.location.title')}</h3>
       </div>
+      <p className="text-xs text-[#737A72] mb-5">{cms.t('basket.location.text')}</p>
 
-      <p className="text-xs text-[#737A72] mb-5">
-        Select your local area to view real-time harvest stock and same-day delivery slots.
-      </p>
+      {cart?.zone && (
+        <div className="mb-4 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200/70 text-xs text-[#18181B] flex items-center gap-2">
+          <Check className="w-3.5 h-3.5 text-[#B45309]" />
+          <span><InlineText text={cms.t('basket.location.current', { area: `${cart.zone.name} (${cart.postcode})` })} /></span>
+        </div>
+      )}
 
-      {/* Custom Input */}
-      <form onSubmit={handleCustomSubmit} className="mb-5">
-        <label className="text-xs font-bold text-[#18181B] block mb-1">
-          Enter UK Postcode:
-        </label>
+      <form onSubmit={submit} className="mb-5" noValidate>
+        <label htmlFor="postcode-input" className="text-xs font-bold text-[#18181B] block mb-1">{cms.t('basket.location.label')}</label>
         <div className="flex gap-2">
           <input
+            id="postcode-input"
+            ref={inputRef}
             type="text"
-            value={customPostal}
-            onChange={(e) => setCustomPostal(e.target.value)}
-            placeholder="e.g. AL10 9AB"
+            inputMode="text"
+            autoComplete="postal-code"
+            value={input}
+            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            placeholder={cms.t('basket.location.placeholder')}
+            aria-invalid={!!error}
+            aria-describedby={error ? 'postcode-error' : undefined}
             className="flex-1 text-sm uppercase px-3 py-2 rounded-xl border border-stone-200 focus:outline-none focus:border-[#F5D103]"
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-[#F5D103] hover:bg-[#E5A800] text-[#18181B] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95"
+            disabled={saving}
+            className="px-4 py-2 bg-[#F5D103] hover:bg-[#E5A800] text-[#18181B] text-xs font-bold rounded-xl transition-colors cursor-pointer active:scale-95 disabled:opacity-60"
           >
-            Set Postcode
+            {cms.t('basket.location.submit')}
           </button>
         </div>
+        {error && <p id="postcode-error" role="alert" className="mt-1.5 text-[11px] font-semibold text-rose-600">{error}</p>}
       </form>
 
-      {/* Popular Locations */}
-      <div className="mb-6">
-        <label className="text-xs font-bold text-[#18181B] block mb-2">
-          Frequent Delivery Hubs:
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {popularLocations.map((loc) => {
-            const isSelected = selectedPostalCode === loc.code;
-            return (
-              <button
-                key={loc.code}
-                type="button"
-                onClick={() => {
-                  onSelectPostalCode(loc.code);
-                  onClose();
-                }}
-                className={`text-left p-2.5 rounded-xl border text-xs font-medium flex items-center justify-between transition-colors cursor-pointer active:scale-98 ${
-                  isSelected
-                    ? 'bg-amber-100 border-[#F5D103] text-[#18181B] font-bold'
-                    : 'border-stone-200 hover:bg-stone-50 text-[#18181B]'
-                }`}
-              >
-                <span>{loc.code}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-[#B45309]" />}
-              </button>
-            );
-          })}
+      {areas.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-bold text-[#18181B] mb-1">{cms.t('basket.location.popular_title')}</p>
+          <p className="text-[11px] text-stone-500 mb-2">{cms.t('basket.location.popular_hint')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {areas.map((a) => {
+              const district = a.label.split(',').pop()?.trim() ?? '';
+              const selected = cart?.zone?.code === a.code;
+              return (
+                <button
+                  key={a.code}
+                  type="button"
+                  onClick={() => {
+                    setInput(`${district} `);
+                    inputRef.current?.focus();
+                  }}
+                  className={`text-left p-2.5 rounded-xl border text-xs font-medium flex items-center justify-between transition-colors cursor-pointer active:scale-98 ${
+                    selected ? 'bg-amber-100 border-[#F5D103] text-[#18181B] font-bold' : 'border-stone-200 hover:bg-stone-50 text-[#18181B]'
+                  }`}
+                >
+                  <span>{a.label}</span>
+                  {selected && <Check className="w-3.5 h-3.5 text-[#B45309]" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Delivery Slot Selector */}
-      <div>
-        <label className="text-xs font-bold text-[#18181B] flex items-center gap-1.5 mb-2">
-          <Clock className="w-3.5 h-3.5 text-[#B45309]" />
-          <span>Available Delivery Windows:</span>
-        </label>
-        <div className="space-y-1.5">
-          {deliverySlots.map((slot) => (
-            <button
-              key={slot}
-              type="button"
-              onClick={() => setSelectedSlot(slot)}
-              className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer active:scale-98 ${
-                selectedSlot === slot
-                  ? 'border-[#F5D103] bg-amber-50 font-semibold text-[#18181B]'
-                  : 'border-stone-200 hover:bg-stone-50 text-[#737A72]'
-              }`}
-            >
-              <span>{slot}</span>
-              {selectedSlot === slot && (
-                <Check className="w-3.5 h-3.5 text-[#18181B]" />
-              )}
-            </button>
-          ))}
+      {cart?.postcode && cart.zone && (
+        <div>
+          <p className="text-xs font-bold text-[#18181B] flex items-center gap-1.5 mb-2">
+            <Clock className="w-3.5 h-3.5 text-[#B45309]" />
+            <span>{cms.t('basket.location.slots_title')}</span>
+          </p>
+          {slotsLoading ? (
+            <p className="text-xs text-stone-500">{cms.t('global.common.loading')}</p>
+          ) : slots.length === 0 ? (
+            <p className="text-xs text-stone-500">{cms.t('basket.location.slots_none')}</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {slots.slice(0, 4).map((s) => (
+                <li key={s.id} className={`w-full p-2.5 rounded-xl border text-xs flex items-center justify-between ${s.availability === 'full' ? 'border-stone-100 text-stone-400' : 'border-stone-200 text-[#18181B]'}`}>
+                  <span>
+                    <strong>{s.dayLabel}</strong>, {s.timeLabel}
+                    {s.serviceLabel ? ` (${s.serviceLabel})` : ''}
+                  </span>
+                  <span className="font-semibold">
+                    {s.availability === 'full' ? cms.t('basket.location.slots_full') : s.surcharge ? `+${formatMoney(s.surcharge)}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-[11px] text-stone-500">{cms.t('basket.location.slots_note')}</p>
         </div>
-      </div>
+      )}
     </AnimatedModal>
   );
 };
