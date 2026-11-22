@@ -5,7 +5,7 @@ import type { CmsImage, CmsLink } from './types';
 export const CMS_ICON_NAMES = ['truck', 'leaf', 'shield-check', 'clock', 'heart', 'star', 'gift', 'percent', 'tag', 'sparkles', 'shopping-basket', 'shopping-bag', 'package', 'map-pin', 'phone', 'mail', 'message-circle', 'credit-card', 'refresh-cw', 'award', 'thumbs-up', 'users', 'sun', 'snowflake', 'flame', 'wheat', 'apple', 'carrot', 'milk', 'fish', 'egg', 'cookie', 'coffee', 'zap', 'badge-check', 'lock', 'recycle', 'store', 'home', 'calendar', 'info', 'help-circle', 'instagram', 'facebook', 'youtube', 'linkedin', 'x', 'smartphone', 'globe', 'check-circle', 'timer', 'hand-heart', 'sprout'] as const;
 export type CmsIconName = (typeof CMS_ICON_NAMES)[number];
 
-export type CmsPageKey = 'global' | 'home' | 'shop' | 'basket' | 'product' | 'wishlist' | 'checkout' | 'account' | 'terms' | 'privacy' | 'cookies' | 'returns' | 'delivery' | 'faq' | 'contact' | 'sustainability' | 'careers' | 'press' | 'nutrition_tips';
+export type CmsPageKey = 'global' | 'home' | 'shop' | 'basket' | 'product' | 'wishlist' | 'checkout' | 'account' | 'story' | 'terms' | 'privacy' | 'cookies' | 'returns' | 'delivery' | 'faq' | 'contact' | 'sustainability' | 'careers' | 'press' | 'nutrition_tips';
 export type CmsSectionKey =
   | 'global.brand'
   | 'global.seo'
@@ -72,6 +72,12 @@ export type CmsSectionKey =
   | 'account.preferences'
   | 'account.profile'
   | 'account.privacy'
+  | 'story.hero'
+  | 'story.genesis'
+  | 'story.film'
+  | 'story.pillars'
+  | 'story.timeline'
+  | 'story.promise'
   | 'terms.content'
   | 'privacy.content'
   | 'cookies.content'
@@ -837,6 +843,38 @@ export interface CmsEntries {
   'account.privacy.delete_prompt': string;
   'account.privacy.delete_button': string;
   'account.privacy.deleted': string;
+  'story.hero.crumb': string;
+  'story.hero.tagline': string;
+  'story.hero.eyebrow': string;
+  'story.hero.title': string;
+  'story.hero.text': string;
+  'story.hero.primary': CmsLink;
+  'story.hero.video_button': string;
+  'story.hero.metrics': Array<{ value: string; label: string }>;
+  'story.genesis.image': CmsImage;
+  'story.genesis.image_eyebrow': string;
+  'story.genesis.image_caption': string;
+  'story.genesis.eyebrow': string;
+  'story.genesis.title': string;
+  'story.genesis.body': string;
+  'story.genesis.points': Array<{ text: string }>;
+  'story.film.eyebrow': string;
+  'story.film.title': string;
+  'story.film.text': string;
+  'story.film.background_video': string;
+  'story.film.play_aria': string;
+  'story.pillars.eyebrow': string;
+  'story.pillars.title': string;
+  'story.pillars.text': string;
+  'story.pillars.items': Array<{ icon: CmsIconName; badge: string; title: string; text: string }>;
+  'story.timeline.eyebrow': string;
+  'story.timeline.title': string;
+  'story.timeline.text': string;
+  'story.timeline.items': Array<{ year: string; title: string; text: string }>;
+  'story.promise.title': string;
+  'story.promise.quote': string;
+  'story.promise.primary': CmsLink;
+  'story.promise.secondary': CmsLink;
   'terms.content.title': string;
   'terms.content.intro': string;
   'terms.content.body': string;
@@ -1640,6 +1678,38 @@ export const CMS_KINDS: Record<keyof CmsEntries, CmsKind> = {
   'account.privacy.delete_prompt': 'text',
   'account.privacy.delete_button': 'text',
   'account.privacy.deleted': 'text',
+  'story.hero.crumb': 'text',
+  'story.hero.tagline': 'text',
+  'story.hero.eyebrow': 'text',
+  'story.hero.title': 'text',
+  'story.hero.text': 'text',
+  'story.hero.primary': 'link',
+  'story.hero.video_button': 'text',
+  'story.hero.metrics': 'list',
+  'story.genesis.image': 'image',
+  'story.genesis.image_eyebrow': 'text',
+  'story.genesis.image_caption': 'text',
+  'story.genesis.eyebrow': 'text',
+  'story.genesis.title': 'text',
+  'story.genesis.body': 'richtext',
+  'story.genesis.points': 'list',
+  'story.film.eyebrow': 'text',
+  'story.film.title': 'text',
+  'story.film.text': 'text',
+  'story.film.background_video': 'json',
+  'story.film.play_aria': 'text',
+  'story.pillars.eyebrow': 'text',
+  'story.pillars.title': 'text',
+  'story.pillars.text': 'text',
+  'story.pillars.items': 'list',
+  'story.timeline.eyebrow': 'text',
+  'story.timeline.title': 'text',
+  'story.timeline.text': 'text',
+  'story.timeline.items': 'list',
+  'story.promise.title': 'text',
+  'story.promise.quote': 'text',
+  'story.promise.primary': 'link',
+  'story.promise.secondary': 'link',
   'terms.content.title': 'text',
   'terms.content.intro': 'text',
   'terms.content.body': 'richtext',
