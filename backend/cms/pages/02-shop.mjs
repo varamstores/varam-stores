@@ -1,0 +1,83 @@
+import { page, section, text, list, f } from '../define.mjs';
+
+export default page('shop', 'Shop (catalogue)', {
+  route: '/shop',
+  help: 'The product list with filters. Products, categories and brands themselves are edited under Products.',
+  seo: { title: 'Shop Groceries', description: 'Browse fresh produce, rice, spices, flours, snacks, pooja essentials and more. Delivered across Hertfordshire and North London.' },
+}, [
+  section('header', 'Page heading', 'The banner at the top of the product list.', [
+    text('eyebrow', 'Small label', 'Thoughtfully Sourced Everyday Market', { max: 50 }),
+    text('all_title', 'Heading when no category is chosen', 'All Groceries & Produce', { max: 60 }),
+    text('description', 'Text', 'Fresh produce, grass-fed dairy, warm sourdough, and organic pantry items delivered straight to your door in Hatfield.', { max: 200 }),
+    text('search_title', 'Heading when searching', 'Results for "{query}"', { max: 60, help: '{query} is what the shopper searched for.' }),
+    text('brand_title', 'Heading for one brand', '{name}', { max: 60, help: '{name} is the brand.' }),
+    text('crumb_home', 'Breadcrumb: home', 'Home', { max: 20 }),
+    text('crumb_catalogue', 'Breadcrumb: catalogue', 'Catalogue', { max: 20 }),
+    text('crumb_aria', 'Breadcrumb (screen readers)', 'Breadcrumb', { max: 30 }),
+    text('all_tab', 'Tab: all items', 'All Items ({count})', { max: 30, help: '{count} is the number of products.' }),
+    text('category_tab', 'Tab: a category', '{name} ({count})', { max: 40 }),
+  ], { reorderable: false }),
+
+  section('filters', 'Filters', 'The filter panel (left on desktop, a pop-up on phones).', [
+    text('title', 'Heading', 'Filters', { max: 24 }),
+    text('reset_all', 'Reset link', 'Reset All', { max: 20 }),
+    text('categories_title', 'Categories heading', 'Aisles & Categories', { max: 40 }),
+    text('all_categories', 'All categories option', 'All Categories', { max: 30 }),
+    text('brands_title', 'Brands heading', 'Popular Brands', { max: 40 }),
+    text('brands_clear', 'Clear brands link', 'Clear', { max: 16 }),
+    text('dietary_title', 'Dietary & deals heading', 'Dietary & Deals', { max: 40 }),
+    text('organic', 'Organic option', 'Organic Only', { max: 40 }),
+    text('on_sale', 'On sale option', 'On Sale & Special Offers', { max: 40 }),
+    text('price_title', 'Price heading', 'Price Limit', { max: 30 }),
+    text('price_up_to', 'Price value', 'Up to {price}', { max: 30, help: '{price} is the chosen maximum.' }),
+    text('price_any', 'No price limit', 'Any price', { max: 20 }),
+    text('price_aria', 'Price slider (screen readers)', 'Maximum price', { max: 40 }),
+    text('rating_title', 'Rating heading', 'Customer Rating', { max: 30 }),
+    list('rating_options', 'Rating choices', { label: f.text('Label', { max: 30 }), value: f.number('Minimum stars (0 = all)') }, [
+      { label: 'All Ratings', value: 0 },
+      { label: '4.8 ★ & Above', value: 4.8 },
+      { label: '4.5 ★ & Above', value: 4.5 },
+    ], { maxItems: 5 }),
+    text('mobile_button', 'Phone: filter button', 'Filters', { max: 20 }),
+    text('mobile_title', 'Phone: pop-up heading', 'Filter Groceries', { max: 40 }),
+    text('mobile_reset', 'Phone: reset button', 'Reset', { max: 16 }),
+    text('mobile_show', 'Phone: show results button', 'Show {count} Results', { max: 30, help: '{count} is the number of matching products.' }),
+    text('close_aria', 'Close (screen readers)', 'Close filters', { max: 30 }),
+  ], { reorderable: false }),
+
+  section('toolbar', 'Search & sort bar', 'The bar above the products.', [
+    text('search_placeholder', 'Search box hint', 'Search products in catalogue...', { max: 50 }),
+    text('clear_search_aria', 'Clear search (screen readers)', 'Clear search', { max: 30 }),
+    text('sort_label', 'Sort label', 'Sort by:', { max: 16 }),
+    text('sort_aria', 'Sort menu (screen readers)', 'Sort products', { max: 30 }),
+    text('sort_featured', 'Sort: featured', 'Featured Picks', { max: 30 }),
+    text('sort_price_asc', 'Sort: cheapest first', 'Price: Low to High', { max: 30 }),
+    text('sort_price_desc', 'Sort: dearest first', 'Price: High to Low', { max: 30 }),
+    text('sort_rating', 'Sort: best rated', 'Highest Rated', { max: 30 }),
+    text('sort_name_asc', 'Sort: A to Z', 'Alphabetical (A - Z)', { max: 30 }),
+    text('sort_name_desc', 'Sort: Z to A', 'Alphabetical (Z - A)', { max: 30 }),
+  ], { reorderable: false }),
+
+  section('chips', 'Active filter tags', 'Small tags showing which filters are on.', [
+    text('label', 'Label', 'Active filters:', { max: 30 }),
+    text('category', 'Category tag', 'Category: {name}', { max: 40 }),
+    text('brand', 'Brand tag', 'Brand: {name}', { max: 40 }),
+    text('organic', 'Organic tag', 'Organic', { max: 24 }),
+    text('on_sale', 'On sale tag', 'Special Offers', { max: 24 }),
+    text('price', 'Price tag', 'Under {price}', { max: 24 }),
+    text('rating', 'Rating tag', '{rating}+ Stars', { max: 24 }),
+    text('remove_aria', 'Remove tag (screen readers)', 'Remove filter', { max: 30 }),
+    text('clear_all', 'Clear all link', 'Clear all', { max: 20 }),
+  ], { reorderable: false }),
+
+  section('results', 'Results', 'The product grid, the empty state and "load more".', [
+    text('showing', 'Count line', 'Showing **{count}** grocery items', { max: 60, help: '{count} is the number of matching products.' }),
+    text('showing_one', 'Count line (one product)', 'Showing **1** grocery item', { max: 60 }),
+    text('note', 'Note on the right', '✓ Freshly picked & temperature controlled', { max: 60, help: 'Leave empty to hide.' }),
+    text('empty_title', 'No results: heading', 'No matching items found', { max: 60 }),
+    text('empty_text', 'No results: text', 'We could not find any groceries matching your filters. Try clearing your search or loosening the filters.', { max: 200 }),
+    text('empty_reset', 'No results: reset button', 'Reset All Filters', { max: 30 }),
+    text('empty_browse', 'No results: browse button', 'Browse All Aisles', { max: 30 }),
+    text('load_more', 'Load more button', 'Load More Products ({count} remaining)', { max: 50, help: '{count} is how many are not shown yet.' }),
+  ], { reorderable: false }),
+]);

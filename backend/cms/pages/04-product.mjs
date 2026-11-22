@@ -1,0 +1,113 @@
+import { page, section, text, list, f } from '../define.mjs';
+
+// The product page template. Each product's own details (name, description, photos, ingredients,
+// allergens, nutrition) are edited under Products; these are the labels around them.
+export default page('product', 'Product page', {
+  route: '/product/…',
+  help: 'Labels and promises shown on every product page. Product details themselves are edited under Products.',
+}, [
+  section('main', 'Top of the page', 'Breadcrumbs, price area and buttons.', [
+    text('crumb_home', 'Breadcrumb: home', 'Home', { max: 20 }),
+    text('crumb_catalogue', 'Breadcrumb: catalogue', 'Catalogue', { max: 20 }),
+    text('share', 'Share button', 'Share', { max: 16 }),
+    text('link_copied', 'Link copied message', 'Product link copied', { max: 40 }),
+    text('origin', 'Origin line', 'Origin: {origin}', { max: 40, help: '{origin} comes from the product. Hidden when unknown.' }),
+    text('rating_of', 'Rating suffix', '/ 5.0', { max: 10 }),
+    text('reviews_link', 'Reviews link', '{count} customer reviews', { max: 40 }),
+    text('no_reviews_link', 'Reviews link (none yet)', 'Be the first to review', { max: 40 }),
+    text('in_stock', 'In stock line', 'In stock & freshly selected for you', { max: 60 }),
+    text('next_slot', 'Next delivery line', 'Next delivery: {slot}', { max: 60, help: '{slot} is the next open delivery window for the shopper\'s postcode.' }),
+    text('add', 'Add button', 'Add to Basket', { max: 30 }),
+    text('add_many', 'Add button (more than one)', 'Add {count} to Basket', { max: 30 }),
+    text('in_basket', 'Already in basket', '✓ You have {count} in your basket', { max: 60 }),
+    text('wishlist_add', 'Save button hint', 'Save to saved items', { max: 40 }),
+    text('wishlist_remove', 'Unsave button hint', 'Remove from saved items', { max: 40 }),
+    text('photo_aria', 'Photo button (screen readers)', 'View photo {number}', { max: 30 }),
+    text('not_found_title', 'Product not found: heading', 'Product Not Found', { max: 40 }),
+    text('not_found_text', 'Product not found: text', 'This item may have been rotated with the season or is no longer available.', { max: 160 }),
+    text('not_found_button', 'Product not found: button', 'Explore Full Catalogue', { max: 30 }),
+  ], { reorderable: false }),
+
+  section('promise', 'Freshness promise box', 'The box under the product photos.', [
+    text('title', 'Heading', 'Varam Foods Freshness Promise', { max: 50 }),
+    text('text', 'Text', 'If you are not delighted with your produce freshness, we refund or replace with no hassle.', { max: 160 }),
+  ]),
+
+  section('perks', 'Three promises', 'Three small boxes under the buttons.', [
+    list('items', 'Promises', { icon: f.icon('Icon'), title: f.text('Title', { max: 24 }), subtitle: f.text('Small text', { max: 30 }) }, [
+      { icon: 'truck', title: 'Free Over £50', subtitle: 'Fast courier drop' },
+      { icon: 'leaf', title: 'Direct Harvest', subtitle: 'Zero air-miles' },
+      { icon: 'refresh-cw', title: 'Easy Returns', subtitle: '100% money back' },
+    ], { maxItems: 3 }),
+  ]),
+
+  section('tabs', 'Information tabs', 'Tab names and headings in the details area.', [
+    text('overview', 'Tab: overview', 'Overview & Culinary Use', { max: 40 }),
+    text('food_info', 'Tab: food information', 'Ingredients & Nutrition', { max: 40 }),
+    text('sourcing', 'Tab: sourcing', 'Sustainable Sourcing', { max: 40 }),
+    text('reviews', 'Tab: reviews', 'Reviews ({count})', { max: 30 }),
+    text('overview_title', 'Overview heading', 'Flavour Profile & Chef Tips', { max: 50 }),
+    text('storage_title', 'Storage heading', 'Storage Guidance', { max: 40 }),
+    text('sourcing_title', 'Sourcing heading', 'From Soil to Table Without Compromise', { max: 60 }),
+    list('sourcing_cards', 'Sourcing boxes', { title: f.text('Title', { max: 40 }), text: f.text('Text', { max: 120 }) }, [
+      { title: 'Zero Air-Miles Guarantee', text: 'Delivered via ground eco-couriers directly from farm gates.' },
+      { title: 'Eco Packaging', text: 'Compostable cornstarch wrappers and FSC certified cardboard trays.' },
+    ], { maxItems: 3, help: 'Only make claims you can back up.' }),
+  ]),
+
+  section('food_info', 'Food information labels', 'Labels for the legally required food information (UK food labelling rules).', [
+    text('ingredients', 'Ingredients heading', 'Ingredients', { max: 30 }),
+    text('allergens', 'Allergens heading', 'Allergens', { max: 30 }),
+    text('contains', 'Contains label', 'Contains:', { max: 20 }),
+    text('may_contain', 'May contain label', 'May contain:', { max: 20 }),
+    text('no_allergens', 'No allergens line', 'No allergens declared.', { max: 60 }),
+    text('nutrition', 'Nutrition heading', 'Nutrition', { max: 30 }),
+    text('per_100g', 'Per 100 g column', 'Per 100 g', { max: 20 }),
+    text('per_100ml', 'Per 100 ml column', 'Per 100 ml', { max: 20 }),
+    text('energy', 'Energy', 'Energy', { max: 20 }),
+    text('fat', 'Fat', 'Fat', { max: 20 }),
+    text('saturates', 'Saturates', 'of which saturates', { max: 30 }),
+    text('carbohydrate', 'Carbohydrate', 'Carbohydrate', { max: 20 }),
+    text('sugars', 'Sugars', 'of which sugars', { max: 30 }),
+    text('fibre', 'Fibre', 'Fibre', { max: 20 }),
+    text('protein', 'Protein', 'Protein', { max: 20 }),
+    text('salt', 'Salt', 'Salt', { max: 20 }),
+    text('country', 'Country of origin label', 'Country of origin', { max: 30 }),
+    text('operator', 'Food business label', 'Food business operator', { max: 40 }),
+    text('incomplete', 'Information incomplete', 'Full food information for this product is being checked. Please read the pack label on delivery, or contact us before ordering if you have an allergy.', { max: 240 }),
+    text('allergen_celery', 'Allergen: celery', 'Celery', { max: 30 }),
+    text('allergen_cereals_gluten', 'Allergen: gluten', 'Cereals containing gluten', { max: 40 }),
+    text('allergen_crustaceans', 'Allergen: crustaceans', 'Crustaceans', { max: 30 }),
+    text('allergen_eggs', 'Allergen: eggs', 'Eggs', { max: 30 }),
+    text('allergen_fish', 'Allergen: fish', 'Fish', { max: 30 }),
+    text('allergen_lupin', 'Allergen: lupin', 'Lupin', { max: 30 }),
+    text('allergen_milk', 'Allergen: milk', 'Milk', { max: 30 }),
+    text('allergen_molluscs', 'Allergen: molluscs', 'Molluscs', { max: 30 }),
+    text('allergen_mustard', 'Allergen: mustard', 'Mustard', { max: 30 }),
+    text('allergen_tree_nuts', 'Allergen: nuts', 'Nuts', { max: 30 }),
+    text('allergen_peanuts', 'Allergen: peanuts', 'Peanuts', { max: 30 }),
+    text('allergen_sesame', 'Allergen: sesame', 'Sesame', { max: 30 }),
+    text('allergen_soya', 'Allergen: soya', 'Soya', { max: 30 }),
+    text('allergen_sulphites', 'Allergen: sulphites', 'Sulphur dioxide and sulphites', { max: 40 }),
+  ], { reorderable: false }),
+
+  section('reviews', 'Reviews', 'The reviews tab. Reviews are approved under Customers → Reviews before they appear.', [
+    text('summary', 'Summary line', 'Based on {count} customer reviews', { max: 60 }),
+    text('none', 'No reviews yet', 'No reviews yet. Bought this? Tell others what you think.', { max: 120 }),
+    text('write', 'Write button', 'Write a Review', { max: 24 }),
+    text('verified', 'Verified badge', 'Verified Buyer', { max: 20 }),
+    text('form_title', 'Form heading', 'Your review', { max: 30 }),
+    text('form_rating', 'Rating label', 'Your rating', { max: 30 }),
+    text('form_body', 'Text label', 'What did you think?', { max: 40 }),
+    text('form_submit', 'Submit button', 'Submit Review', { max: 24 }),
+    text('form_sign_in', 'Sign-in prompt', 'Sign in to write a review.', { max: 60 }),
+    text('form_thanks', 'Thank-you message', 'Thanks! Your review will appear once it has been checked.', { max: 120 }),
+    text('star_aria', 'Star button (screen readers)', '{count} stars', { max: 20 }),
+  ], { reorderable: false }),
+
+  section('related', 'You may also like', 'Products from the same category at the bottom of the page.', [
+    text('eyebrow', 'Small label', 'Frequently Enjoyed Together', { max: 40 }),
+    text('title', 'Heading', 'You May Also Like', { max: 40 }),
+    text('view_all', 'Link', 'View all in {category}', { max: 40 }),
+  ]),
+]);

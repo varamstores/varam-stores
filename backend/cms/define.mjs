@@ -100,3 +100,10 @@ export function page(key, label, o, sections) {
 
 /** Image value helper: img('/hero/a.webp', 'Alt text') or img('/a.webp', 'Alt', '/a-mobile.webp'). */
 export const img = (desktop, alt = '', mobile = null) => ({ desktop, mobile, alt });
+
+/** Which product collection a homepage shelf shows (Products → Collections in the admin). */
+export const collection = (name, label, value, o) => entry('json', name, label, value, o, {
+  itemSchema: { type: 'string', 'x-kind': 'collection', minLength: 1, title: label }, ts: 'string' });
+/** A video file or page URL (mp4/webm link). */
+export const video = (name, label, value, o) => entry('json', name, label, value, o, {
+  itemSchema: { type: 'string', 'x-kind': 'video', title: label }, ts: 'string' });

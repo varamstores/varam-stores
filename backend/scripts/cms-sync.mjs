@@ -25,7 +25,8 @@ const files = readdirSync(PAGES_DIR).filter((f) => f.endsWith('.mjs')).sort();
 const pages = [];
 for (const file of files) {
   const mod = await import(pathToFileURL(path.join(PAGES_DIR, file)).href);
-  pages.push(mod.default);
+  // a file may define one page or several (e.g. all static pages)
+  pages.push(...(Array.isArray(mod.default) ? mod.default : [mod.default]));
 }
 
 const errors = [];
