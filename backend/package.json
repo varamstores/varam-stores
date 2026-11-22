@@ -16,7 +16,9 @@
     "db:lint": "node scripts/lint.mjs",
     "db:bootstrap-admin": "node scripts/bootstrap-admin.mjs",
     "supabase:configure": "node scripts/configure-supabase.mjs",
-    "db:all": "npm run db:migrate && npm run supabase:configure && npm run db:seed && npm run db:lint && npm run db:test"
+    "db:all": "npm run db:migrate && npm run supabase:configure && npm run db:seed && npm run cms:sync && npm run db:lint && npm run db:test",
+    "cms:sync": "node scripts/cms-sync.mjs",
+    "cms:check": "node scripts/cms-check.mjs"
   },
   "dependencies": {
     "pg": "^8.13.0"
