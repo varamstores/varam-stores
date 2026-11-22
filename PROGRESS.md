@@ -1,6 +1,6 @@
 # Varam Foods — Build Progress
 
-**Overall: 66 % complete** `█████████████░░░░░░░` · last updated 2026-11-22
+**Overall: 74 % complete** `███████████████░░░░░` · last updated 2026-11-22
 
 Everything runs inside the Supabase Postgres database (London, eu-west-2). There's no API
 server: the website and admin portal call Postgres functions directly through Supabase.
@@ -13,11 +13,11 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 | 0 | Discovery & contract | 3 % | ✅ 100 % | `██████████` |
 | 1 | Foundations (schemas, security, runner, tests) | 5 % | ✅ 100 % | `██████████` |
 | 2 | Database schema + all mock data + all images → Supabase | 12 % | ✅ 100 % | `██████████` |
-| 3 | CMS (every page/section/image/nav/footer/SEO/microcopy, desktop + mobile) + storefront from DB | 16 % | 🟨 85 % | `████████▌░` |
+| 3 | CMS (every page/section/image/nav/footer/SEO/microcopy, desktop + mobile) + storefront from DB | 16 % | 🟨 90 % | `█████████░` |
 | 4 | Customer accounts (sign-up/login, addresses, wishlist, newsletter, GDPR) | 10 % | 🟨 95 % | `█████████▌` |
 | 5 | Cart & pricing engine (promotions, VAT, fees) | 10 % | 🟨 95 % | `█████████▌` |
 | 6 | Slots, checkout, Stripe payments, emails — 🏁 first full order | 12 % | 🟨 85 % | `████████▌░` |
-| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 20 % | `██░░░░░░░░` |
+| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 80 % | `████████░░` |
 | 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | 🟨 5 % | `▌░░░░░░░░░` |
 | 9 | Hardening & launch checklist | 5 % | ⬜ 0 % | `░░░░░░░░░░` |
 
@@ -25,10 +25,10 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 
 | Area | Count | Notes |
 |---|---|---|
-| Migrations applied | 22 | `backend/db/migrations/0001…0022` |
+| Migrations applied | 24 | `backend/db/migrations/0001…0024` |
 | Tables | 89 | private schema `app`, RLS on, not reachable from the browser |
 | Browser-callable functions | 83 | catalogue, CMS, basket, accounts, checkout, orders, loyalty, alerts, repeat orders |
-| Automated tests | **275 passing, 0 failing** | security, money/VAT, constraints, seed, catalogue, basket, accounts, checkout, engagement |
+| Automated tests | **304 passing, 0 failing** | security, money/VAT, constraints, seed, catalogue, basket, accounts, checkout, engagement, order management |
 | CMS | 19 pages · 76 sections · 798 entries | every text, image, link and section on the site; edits go live within a minute |
 | Delivery slots open | 115 | generated hourly from the slot templates |
 | Scheduled jobs | 8 | slots, slot holds, payment reconciler, email outbox, guest baskets, alerts, repeat orders, basket reminders |
@@ -52,7 +52,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Microcopy: buttons, labels, toasts, empty states, error messages, promo-code reasons
 - [x] Homepage sections, shop, product, basket, delivery pop-up, quick view, wishlist, checkout, account → CMS
 - [x] Catalogue functions; frontend reads everything from Postgres
-- [ ] "Our Story" page → CMS
+- [x] "Our Story" page → CMS (sections reorderable, live counts)
 - [ ] Catalogue mock files deleted (still read by the admin portal until Phase 8)
 
 ### 🟨 Phase 4 — Customer accounts (95 %)
@@ -74,10 +74,16 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Email outbox + Resend sender — **waiting for your Resend key and domain**
 - [ ] Switch to Stripe and send a real test-card order once keys arrive
 
-### 🟨 Phase 7 — Order management (20 %)
+### 🟨 Phase 7 — Order management (80 %)
 - [x] Order state machine with full history; customer cancellation releases stock, slot, coupon and card hold
 - [x] Loyalty: balance, tiers, rewards redeemed as personal codes
-- [ ] Picking (weights, substitutions), capture ≤ authorised, invoices, dispatch, delivery + ID check, refunds / credit notes, loyalty earning
+- [x] Picking queue, picks with weights / shortages / substitutes (customer pays the lower price)
+- [x] Final pricing, capture ≤ authorised (idempotent), stock movements, loyalty earning, "packed" email
+- [x] Dispatch (van, driver, arrival window, tracking code), delivery with ID check
+- [x] Refund requests → manager approval → Stripe refund, credit note, points reversal, email
+- [x] Staff cancel of unpaid orders; order search for staff
+- [ ] Invoices switch on once your company + VAT details are saved (built and tested to that point)
+- [ ] Admin screens for all of the above (Phase 8)
 
 ### 🟨 Phase 8 — Admin portal (5 %)
 - [x] CMS editor functions in the database (overview, edit entry/section/page, search, media library)
@@ -115,5 +121,6 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 7. Rotate the DB password and Supabase access token (they were pasted in chat); later change the test@gmail.com login
 
 ## Log
+- **2026-11-22 (later)**: Order management end to end (picking → capture → dispatch → delivery → refunds) + Our Story from the CMS. 24 migrations, 304 tests green.
 - **2026-11-22**: Storefront fully on Postgres + CMS (798 entries). Basket & pricing engine, accounts, delivery slots, checkout and orders, loyalty, reviews, alerts, repeat orders, basket reminders. 22 migrations, 275 tests green.
 - **2026-11-21**: Phases 0–2 complete. 11 migrations, 82 tables, 93 tests green, all mocks and images in Supabase, Store Manager login live.
