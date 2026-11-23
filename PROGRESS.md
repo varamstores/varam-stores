@@ -1,6 +1,6 @@
 # Varam Foods — Build Progress
 
-**Overall: 74 % complete** `███████████████░░░░░` · last updated 2026-11-22
+**Overall: 79 % complete** `████████████████░░░░` · last updated 2026-11-23
 
 Everything runs inside the Supabase Postgres database (London, eu-west-2). There's no API
 server: the website and admin portal call Postgres functions directly through Supabase.
@@ -17,21 +17,21 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 | 4 | Customer accounts (sign-up/login, addresses, wishlist, newsletter, GDPR) | 10 % | 🟨 95 % | `█████████▌` |
 | 5 | Cart & pricing engine (promotions, VAT, fees) | 10 % | 🟨 95 % | `█████████▌` |
 | 6 | Slots, checkout, Stripe payments, emails — 🏁 first full order | 12 % | 🟨 85 % | `████████▌░` |
-| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 80 % | `████████░░` |
-| 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | 🟨 5 % | `▌░░░░░░░░░` |
+| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 85 % | `████████▌░` |
+| 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | 🟨 35 % | `███▌░░░░░░` |
 | 9 | Hardening & launch checklist | 5 % | ⬜ 0 % | `░░░░░░░░░░` |
 
 ## What's live in the database right now
 
 | Area | Count | Notes |
 |---|---|---|
-| Migrations applied | 24 | `backend/db/migrations/0001…0024` |
-| Tables | 89 | private schema `app`, RLS on, not reachable from the browser |
-| Browser-callable functions | 83 | catalogue, CMS, basket, accounts, checkout, orders, loyalty, alerts, repeat orders |
-| Automated tests | **304 passing, 0 failing** | security, money/VAT, constraints, seed, catalogue, basket, accounts, checkout, engagement, order management |
+| Migrations applied | 28 | `backend/db/migrations/0001…0028` |
+| Tables | 90 | private schema `app`, RLS on, not reachable from the browser |
+| Browser-callable functions | 169 | shop: catalogue, CMS, basket, accounts, checkout, orders, loyalty, alerts, repeat orders · admin: 86 (orders, picking, dispatch, refunds, products, CSV, stock, suppliers, purchase orders, customers, reviews, emails, offers, delivery, loyalty, staff, settings, audit) |
+| Automated tests | **399 passing, 0 failing** | security, money/VAT, constraints, seed, catalogue, basket, accounts, checkout, engagement, order management, admin catalogue, admin operations, admin configuration |
 | CMS | 19 pages · 76 sections · 798 entries | every text, image, link and section on the site; edits go live within a minute |
-| Delivery slots open | 115 | generated hourly from the slot templates |
-| Scheduled jobs | 8 | slots, slot holds, payment reconciler, email outbox, guest baskets, alerts, repeat orders, basket reminders |
+| Delivery slots open | 110 | generated hourly from the slot templates |
+| Scheduled jobs | 9 | slots, slot holds, payment reconciler, email outbox, guest baskets, alerts, repeat orders, basket reminders, low-stock purchase-order drafts |
 | Products | 42 live + 2 draft | |
 | Images in Supabase Storage | 181 / 181 | bucket `storefront` |
 | Store Manager login | test@gmail.com | |
@@ -74,7 +74,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Email outbox + Resend sender — **waiting for your Resend key and domain**
 - [ ] Switch to Stripe and send a real test-card order once keys arrive
 
-### 🟨 Phase 7 — Order management (80 %)
+### 🟨 Phase 7 — Order management (85 %)
 - [x] Order state machine with full history; customer cancellation releases stock, slot, coupon and card hold
 - [x] Loyalty: balance, tiers, rewards redeemed as personal codes
 - [x] Picking queue, picks with weights / shortages / substitutes (customer pays the lower price)
@@ -82,12 +82,16 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Dispatch (van, driver, arrival window, tracking code), delivery with ID check
 - [x] Refund requests → manager approval → Stripe refund, credit note, points reversal, email
 - [x] Staff cancel of unpaid orders; order search for staff
-- [ ] Invoices switch on once your company + VAT details are saved (built and tested to that point)
+- [x] Invoices: switch on in Settings once company + VAT details are saved (Settings → Company & VAT)
 - [ ] Admin screens for all of the above (Phase 8)
 
-### 🟨 Phase 8 — Admin portal (5 %)
+### 🟨 Phase 8 — Admin portal (35 %)
 - [x] CMS editor functions in the database (overview, edit entry/section/page, search, media library)
-- [ ] Every admin tab wired; CMS editor screens with guidance; every setting editable; mock admin data deleted
+- [x] Admin catalogue functions: products, prices (now or scheduled, with history), food information, photos, categories, brands, shelves, CSV import (dry run first) / export
+- [x] Admin operations functions: dashboard, stock, stock-count CSV, suppliers, purchase orders (+ automatic low-stock drafts), customers, loyalty adjustments, customer messages, reviews, email templates, email outbox
+- [x] Admin configuration functions: every setting with a plain-English label and help, company & VAT, VAT-rate confirmation, offers & promo codes, delivery areas / postcodes / charges / weekly windows / single slots, vans, drivers, loyalty tiers & rewards, staff invitations (email via Supabase Auth), roles & permissions, audit log
+- [ ] Admin screens (new, modular, guided) replacing the mock portal; CMS editor with the simple link picker
+- [ ] Mock admin data deleted
 
 ### ⬜ Phase 9 — Hardening
 
@@ -98,8 +102,8 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 | Back-in-stock & price-drop alerts | ✅ (+ email job) | ✅ product page buttons, account tab |
 | Repeat orders (basket refilled + reminder, nothing charged automatically) | ✅ (+ daily job) | ✅ account tab, "Repeat this order" |
 | Abandoned-basket reminders (only with marketing consent) | ✅ (+ hourly job) | ✅ settings in admin later |
-| Low-stock automatic purchase orders | ⬜ | ⬜ (Phase 8) |
-| Product CSV import / export | ⬜ | ⬜ (Phase 8) |
+| Low-stock automatic purchase orders | ✅ (+ daily 06:30 job, on/off in Settings) | ⬜ admin screen |
+| Product CSV import / export | ✅ (dry run lists every problem; all-or-nothing) | ⬜ admin screen |
 
 ## Mock removal tracker (goal: zero)
 | Frontend source | Data in DB | Frontend reads DB | File deleted |
@@ -121,6 +125,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 7. Rotate the DB password and Supabase access token (they were pasted in chat); later change the test@gmail.com login
 
 ## Log
+- **2026-11-23**: All admin functions in the database: catalogue + CSV, stock + suppliers + purchase orders (automatic low-stock drafts), customers, reviews, emails, offers & codes, delivery set-up, loyalty, staff invitations & roles, settings with plain-English help, company & VAT, audit log. 28 migrations, 399 tests green, lint clean.
 - **2026-11-22 (later)**: Order management end to end (picking → capture → dispatch → delivery → refunds) + Our Story from the CMS. 24 migrations, 304 tests green.
 - **2026-11-22**: Storefront fully on Postgres + CMS (798 entries). Basket & pricing engine, accounts, delivery slots, checkout and orders, loyalty, reviews, alerts, repeat orders, basket reminders. 22 migrations, 275 tests green.
 - **2026-11-21**: Phases 0–2 complete. 11 migrations, 82 tables, 93 tests green, all mocks and images in Supabase, Store Manager login live.
