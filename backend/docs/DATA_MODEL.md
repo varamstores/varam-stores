@@ -384,7 +384,7 @@ audit_log        (id, actor_type, actor_id, action, entity_type, entity_id,
 
 | Frontend source | Records | Target tables | Notes |
 |---|---|---|---|
-| `src/data/products.ts` | 42 products | `products`, `product_translations`, `product_images`, `product_prices`, `product_food_info`, `product_categories`, `collection_items` | `price` → current base price; `originalPrice` → `rrp_minor` (not fake history); `unit` → `pack_size_label`; `nutrition` strings parsed to numbers (incomplete → `is_complete=false`); `id` → `legacy_ref` |
+| `src/data/products.ts` (removed 2026-11-23 — the data lives only in Postgres now) | 42 products | `products`, `product_translations`, `product_images`, `product_prices`, `product_food_info`, `product_categories`, `collection_items` | `price` → current base price; `originalPrice` → `rrp_minor` (not fake history); `unit` → `pack_size_label`; `nutrition` strings parsed to numbers (incomplete → `is_complete=false`); `id` → `legacy_ref` |
 | homepage arrays in `products.ts` | 4 shelves | `collections`, `collection_items` | `freshPicks`, `bakeryDairy`, `mostSelling`, `pantrySuperfood` |
 | `src/data/categories.ts` | 12 + 55 subcategories | `categories` (parent/child), `category_translations` | `itemCount` dropped (computed) |
 | `src/data/brands.ts` | 94 unique brands, 22 with logos | `brands` | Product → brand link inferred from names where the brand exists |

@@ -10,7 +10,6 @@
     "db:migrate": "node scripts/migrate.mjs",
     "assets:upload": "node scripts/upload-public-assets.mjs",
     "db:status": "node scripts/migrate.mjs --status",
-    "db:build-seed": "node --experimental-strip-types --no-warnings scripts/build-seed.mjs",
     "db:seed": "node scripts/seed.mjs",
     "db:test": "node scripts/test.mjs",
     "db:lint": "node scripts/lint.mjs",
@@ -18,7 +17,6 @@
     "supabase:configure": "node scripts/configure-supabase.mjs",
     "db:all": "npm run db:migrate && npm run vault:sync && npm run supabase:configure && npm run db:seed && npm run cms:sync && npm run db:lint && npm run db:test",
     "cms:sync": "node scripts/cms-sync.mjs",
-    "cms:check": "node scripts/cms-check.mjs",
     "vault:sync": "node scripts/vault-sync.mjs"
   },
   "dependencies": {

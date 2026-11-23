@@ -78,7 +78,7 @@ backend/
   db/migrations/   0001_… .sql  (applied in order, checksummed, never edited after applying)
   db/seed/         generated SQL (catalogue live + sample)
   db/tests/        pgTAP tests, each run inside BEGIN … ROLLBACK
-  scripts/         migrate · seed · test · lint (plpgsql_check) · build-seed · bootstrap-admin · configure
+  scripts/         migrate · seed · test · lint (plpgsql_check) · bootstrap-admin · vault-sync · configure
   docs/            this folder
   PROGRESS.md
 ```

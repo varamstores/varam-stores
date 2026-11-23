@@ -8,6 +8,18 @@ if (!url || !key) {
 }
 
 /**
+ * What kind of Supabase Auth email link opened this page ('invite', 'recovery', 'signup'…), read
+ * before the client consumes the URL. Staff invitations land on /admin and must choose a password.
+ */
+export const authLinkType: string | null = (() => {
+  try {
+    return new URLSearchParams(window.location.hash.replace(/^#/, '')).get('type');
+  } catch {
+    return null;
+  }
+})();
+
+/**
  * The only way the browser talks to the backend. Every handler is a Postgres function in schema
  * `api` (see backend/docs/API_CONTRACT.md); tables are never reachable from here.
  */

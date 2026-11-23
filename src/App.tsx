@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -35,7 +35,6 @@ import { ProductDetailPage } from './components/ProductDetailPage';
 import { WishlistPage } from './components/WishlistPage';
 import { UserAccountPage } from './components/UserAccountPage';
 import { OurStoryPage } from './components/OurStoryPage';
-import { AdminPortalPage } from './components/AdminPortalPage';
 import { CheckoutPage } from './components/CheckoutPage';
 import { StaticPage } from './components/StaticPage';
 import { NewsletterLinkPage } from './components/NewsletterLinkPage';
@@ -46,6 +45,9 @@ import { CmsSection } from './cms/components';
 import { useSeo } from './cms/hooks';
 import type { CmsSectionKey } from './cms/content.gen';
 import type { Product } from './types';
+
+// The store portal is only downloaded when someone opens /admin.
+const AdminApp = lazy(() => import('./admin/AdminApp'));
 
 /** The homepage, built from the sections the admin has switched on, in the order they set. */
 const HomePage: React.FC<{ onQuickView: (p: Product) => void }> = ({ onQuickView }) => {
@@ -136,7 +138,9 @@ export const AppContent: React.FC = () => {
           )}
           {currentView === 'admin' && (
             <PageTransition key="admin">
-              <AdminPortalPage />
+              <Suspense fallback={<div className="min-h-screen bg-[#18181B]" />}>
+                <AdminApp />
+              </Suspense>
             </PageTransition>
           )}
           {currentView === 'checkout' && (
