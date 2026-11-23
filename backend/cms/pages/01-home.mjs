@@ -13,7 +13,7 @@ const shelf = (key, label, help, o) => section(key, label, help, [
 
 export default page('home', 'Homepage', {
   route: '/',
-  help: 'The first page shoppers see. Drag sections to reorder them.',
+  help: 'The first page shoppers see. Use the arrows to change the order of sections.',
   seo: {
     title: 'Fresh South Asian Groceries Delivered',
     description: 'Fresh vegetables, rice, spices, flours, snacks and essentials delivered across Hertfordshire and North London.',

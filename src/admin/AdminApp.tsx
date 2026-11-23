@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
 import { authLinkType, supabase } from '../lib/supabase';
 import { rpc } from '../lib/api';
-import { Button, Field, Loading, Notice, TextInput, Toaster, cx } from './ui';
+import { AREA, AreaContext, Button, Field, Loading, Notice, TextInput, Toaster, cx, type AreaName } from './ui';
 import { toast } from './toast';
 import { errorText } from './lib';
 
@@ -46,7 +46,7 @@ const Logo: React.FC = () => (
     <div className="w-9 h-9 rounded-xl bg-[#F5D103] text-[#18181B] flex items-center justify-center font-extrabold">V</div>
     <div className="leading-tight">
       <div className="font-extrabold text-sm tracking-tight">Varam Foods</div>
-      <div className="text-[10px] uppercase tracking-widest text-[#F5D103] font-bold">Store portal</div>
+      <div className="text-[12px] text-[#F5D103] font-medium">Store portal</div>
     </div>
   </div>
 );
@@ -183,69 +183,92 @@ export default function AdminApp() {
   const groups = [...new Set(allowed.map((n) => n.group))];
   const ScreenComponent = current?.screen;
 
+  const initials = staff.fullName.split(/s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const statusDot = staff.status === 'active' ? 'bg-emerald-400' : staff.status === 'on_break' ? 'bg-amber-400' : 'bg-slate-500';
   const sidebar = (
-    <nav className="flex flex-col h-full">
-      <div className="px-4 py-4 flex items-center justify-between"><Logo /><button type="button" className="lg:hidden p-1 cursor-pointer" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X className="w-5 h-5" /></button></div>
-      <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-4">
+    <nav className="flex flex-col h-full" aria-label="Store portal">
+      <div className="px-5 pt-5 pb-4 flex items-center justify-between"><Logo /><button type="button" className="lg:hidden p-1 cursor-pointer" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X className="w-5 h-5" /></button></div>
+      <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
         {groups.map((g) => (
           <div key={g}>
-            <div className="px-3 pb-1 text-[10px] uppercase tracking-widest text-slate-500 font-bold">{g}</div>
-            {allowed.filter((n) => n.group === g).map((n) => {
-              const Icon = n.icon;
-              const active = n.key === current?.key;
-              return (
-                <button key={n.key} type="button" onClick={() => go(n.key)}
-                  className={cx('w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left cursor-pointer transition-colors',
-                    active ? 'bg-[#F5D103] text-[#18181B] font-semibold' : 'text-slate-300 hover:bg-white/10 hover:text-white')}>
-                  <Icon className="w-4 h-4 shrink-0" />{n.label}
-                </button>
-              );
-            })}
+            <div className="flex items-center gap-2 px-2.5 pb-1.5 text-[12px] font-medium text-[#9AA3AF]">
+              <span className={cx('w-1.5 h-1.5 rounded-full', AREA[g as AreaName].dot)} />{g}
+            </div>
+            <div className="space-y-0.5">
+              {allowed.filter((n) => n.group === g).map((n) => {
+                const Icon = n.icon;
+                const active = n.key === current?.key;
+                return (
+                  <button key={n.key} type="button" onClick={() => go(n.key)} aria-current={active ? 'page' : undefined}
+                    className={cx('w-full flex items-center gap-3 px-2.5 h-9 rounded-lg text-[14px] text-left cursor-pointer transition-colors',
+                      active ? 'bg-[#F5D103] text-[#18181B] font-semibold' : 'text-[#D4D8DE] hover:bg-white/[0.07] hover:text-white')}>
+                    <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />{n.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>
-      <div className="p-3 border-t border-white/10 space-y-2">
-        <div className="px-1">
-          <div className="text-sm font-semibold text-white truncate">{staff.fullName}</div>
-          <div className="text-xs text-slate-400">{staff.roleName}</div>
+      <div className="p-3 border-t border-white/10">
+        <div className="flex items-center gap-3 px-1.5 py-1.5">
+          <div className="relative w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-[13px] font-semibold shrink-0">
+            {initials}<span className={cx('absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#18181B]', statusDot)} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[14px] font-medium text-white truncate">{staff.fullName}</div>
+            <div className="text-[12px] text-[#9AA3AF] truncate">{staff.roleName}</div>
+          </div>
         </div>
-        <select
-          aria-label="My status"
-          value={staff.status === 'deactivated' ? 'offline' : staff.status}
-          onChange={async (e) => { try { await rpc('staff_set_my_status', { p_status: e.target.value }); await refresh(); } catch (err) { toast.error(errorText(err)); } }}
-          className="w-full h-8 rounded-md bg-white/10 text-white text-xs px-2 border border-white/10 cursor-pointer"
-        >
-          <option value="active" className="text-black">● Working</option>
-          <option value="on_break" className="text-black">● On a break</option>
-          <option value="offline" className="text-black">● Off shift</option>
-        </select>
-        <button type="button" onClick={() => void signOut()} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-slate-300 hover:bg-white/10 cursor-pointer"><LogOut className="w-3.5 h-3.5" />Sign out</button>
+        <div className="flex gap-2 mt-2">
+          <select
+            aria-label="My status"
+            value={staff.status === 'deactivated' ? 'offline' : staff.status}
+            onChange={async (e) => { try { await rpc('staff_set_my_status', { p_status: e.target.value }); await refresh(); } catch (err) { toast.error(errorText(err)); } }}
+            className="flex-1 h-8 rounded-lg bg-white/[0.07] text-white text-[12.5px] px-2 border border-white/10 cursor-pointer"
+          >
+            <option value="active" className="text-black">Working</option>
+            <option value="on_break" className="text-black">On a break</option>
+            <option value="offline" className="text-black">Off shift</option>
+          </select>
+          <button type="button" onClick={() => void signOut()} className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-lg text-[12.5px] text-[#D4D8DE] hover:bg-white/[0.07] cursor-pointer"><LogOut className="w-3.5 h-3.5" />Sign out</button>
+        </div>
       </div>
     </nav>
   );
+  const area = current ? (current.group as AreaName) : null;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#18181B] font-sans antialiased">
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-64 bg-[#18181B] text-white z-30">{sidebar}</aside>
+    <div className="min-h-screen bg-[#F6F7F9] text-[#18181B] font-sans antialiased">
+      <aside className="hidden lg:block fixed inset-y-0 left-0 w-[260px] bg-[#18181B] text-white z-30">{sidebar}</aside>
       {menuOpen && (
         <div className="lg:hidden fixed inset-0 z-[70]">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMenuOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-[#18181B] text-white">{sidebar}</aside>
         </div>
       )}
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 h-14 bg-white/95 backdrop-blur border-b border-[#E2E8F0] flex items-center gap-3 px-4 sm:px-6">
-          <button type="button" className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 cursor-pointer" aria-label="Open menu" onClick={() => setMenuOpen(true)}><Menu className="w-5 h-5" /></button>
-          <div className="font-semibold text-sm truncate">{current?.label}</div>
-          <a href="/" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#18181B]">View the shop <ExternalLink className="w-3.5 h-3.5" /></a>
+      <div className="lg:pl-[260px]">
+        <header className="sticky top-0 z-20 h-14 bg-white/95 backdrop-blur border-b border-[#E4E7EC] flex items-center gap-3 px-4 sm:px-6 lg:px-8">
+          <button type="button" className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-[#EEF0F3] cursor-pointer" aria-label="Open menu" onClick={() => setMenuOpen(true)}><Menu className="w-5 h-5" /></button>
+          {area && current && (
+            <div className="flex items-center gap-2 text-[14px] min-w-0">
+              <span className={cx('w-2 h-2 rounded-full shrink-0', AREA[area].dot)} />
+              <span className="text-[#5F6B7A] hidden sm:inline">{area}</span>
+              <span className="text-[#C3C9D2] hidden sm:inline">/</span>
+              <span className="font-medium truncate">{current.label}</span>
+            </div>
+          )}
+          <a href="/" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#D9DDE3] text-[13px] font-medium text-[#3F4652] hover:bg-[#F6F7F9]">Open the shop <ExternalLink className="w-3.5 h-3.5" /></a>
         </header>
-        <main>
-          {ScreenComponent ? (
-            <ScreenBoundary key={current.key}>
-              <Suspense fallback={<Loading />}>
-                <ScreenComponent param={param} go={go} />
-              </Suspense>
-            </ScreenBoundary>
+        <main className="min-w-0 overflow-x-clip">
+          {current ? (
+            <AreaContext.Provider value={{ area: current.group as AreaName, icon: current.icon, label: current.label }}>
+              <ScreenBoundary key={current.key}>
+                <Suspense fallback={<Loading />}>
+                  <ScreenComponent param={param} go={go} />
+                </Suspense>
+              </ScreenBoundary>
+            </AreaContext.Provider>
           ) : <Loading text="Your role has no screens yet. Ask a Store Manager." />}
         </main>
       </div>

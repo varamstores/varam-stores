@@ -3,7 +3,7 @@ import { page, section, text, image, link, list, textlist, f, optional, img } fr
 // Text entries accept **bold** and *italic*. {placeholders} are filled in by the site; the help
 // text of each entry lists the ones it supports.
 
-export default page('global', 'Site-wide (header, footer, messages)', {
+export default page('global', 'Header, footer & messages', {
   kind: 'global',
   help: 'Content that appears on every page: logo, header and menus, footer, pop-up messages and error messages.',
 }, [

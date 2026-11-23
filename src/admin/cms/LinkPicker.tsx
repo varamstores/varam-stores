@@ -143,7 +143,7 @@ function useProductName(slug: string | null) {
 }
 
 /** Just "Where should it take people?" (for fields that hold only an address). */
-export const DestinationPicker: React.FC<{ value: string; onChange: (href: string) => void; label?: string }> = ({ value, onChange, label = 'Where should it take people?' }) => {
+export const DestinationPicker: React.FC<{ value: string; onChange: (href: string) => void; label?: React.ReactNode }> = ({ value, onChange, label = 'Where should it take people?' }) => {
   const lookups = useLookups();
   const initial = parseHref(value);
   const [dest, setDest] = useState<Dest>(initial.dest);

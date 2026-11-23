@@ -65,13 +65,13 @@ export default function ProductsScreen({ param }: ScreenProps) {
               options={(lookups.data?.categories ?? []).map((x) => ({ value: x.slug, label: x.path }))} />
           </div>
           <div className="flex flex-col lg:flex-row gap-2 lg:items-center justify-between">
-            <Chips value={status} onChange={setStatus} options={[
+            <div className="flex items-center gap-2.5 flex-wrap"><span className="text-[13px] text-[#5F6B7A]">Show</span><Chips value={status} onChange={setStatus} options={[
               { value: '', label: 'All' }, { value: 'active', label: 'On sale', count: c?.active }, { value: 'draft', label: 'Drafts', count: c?.draft }, { value: 'archived', label: 'Archived', count: c?.archived },
-            ]} />
-            <Chips value={issue} onChange={setIssue} options={[
+            ]} /></div>
+            <div className="flex items-center gap-2.5 flex-wrap"><span className="text-[13px] text-[#5F6B7A]">Needs fixing</span><Chips value={issue} onChange={setIssue} options={[
               { value: '', label: 'Any' }, { value: 'food_info', label: 'Food info missing', count: c?.foodInfoMissing }, { value: 'no_price', label: 'No price', count: c?.noPrice },
               { value: 'no_image', label: 'No photo' }, { value: 'low_stock', label: 'Low stock', count: c?.lowStock }, { value: 'out_of_stock', label: 'Out of stock' },
-            ]} />
+            ]} /></div>
           </div>
         </div>
         {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !items.length ? (

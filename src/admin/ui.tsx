@@ -1,33 +1,51 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CheckCircle2, ChevronDown, Info, Lightbulb, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, ImageOff, Info, Lightbulb, Loader2, Search, X } from 'lucide-react';
 import { ORDER_STATUS, type Tone } from './lib';
 import { dismiss, subscribe, type ToastItem } from './toast';
 
-// The admin's building blocks. Every screen is made from these so the whole portal looks and behaves
-// the same: yellow = the main action, dark = secondary, red = destructive.
+// The store portal's design system. Every screen is built from these pieces, so the whole portal
+// looks and behaves the same:
+//   · yellow = the one main action on a screen; ink = secondary; red outline = destructive
+//   · each area of the portal has its own colour (Today, Shop, Customers, Marketing, Set-up), used
+//     on the sidebar, the screen header and side panels, so people always know where they are
+//   · plain sentence-case words everywhere; no all-caps labels
 
 export const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
+
+// ── areas ───────────────────────────────────────────────────────────────────────────────────────
+export type AreaName = 'Today' | 'Shop' | 'Customers' | 'Marketing' | 'Set-up';
+export const AREA: Record<AreaName, { tile: string; text: string; dot: string; bar: string; blurb: string }> = {
+  Today: { tile: 'bg-amber-100 text-amber-800', text: 'text-amber-800', dot: 'bg-amber-400', bar: 'bg-amber-400', blurb: 'Orders coming in and going out' },
+  Shop: { tile: 'bg-emerald-100 text-emerald-800', text: 'text-emerald-800', dot: 'bg-emerald-500', bar: 'bg-emerald-500', blurb: 'What you sell and what is in stock' },
+  Customers: { tile: 'bg-sky-100 text-sky-800', text: 'text-sky-800', dot: 'bg-sky-500', bar: 'bg-sky-500', blurb: 'People who shop with you' },
+  Marketing: { tile: 'bg-violet-100 text-violet-800', text: 'text-violet-800', dot: 'bg-violet-500', bar: 'bg-violet-500', blurb: 'Offers, points and the website' },
+  'Set-up': { tile: 'bg-slate-200 text-slate-700', text: 'text-slate-700', dot: 'bg-slate-400', bar: 'bg-slate-400', blurb: 'How the shop runs' },
+};
+interface AreaInfo { area: AreaName; icon: React.ElementType; label: string }
+export const AreaContext = createContext<AreaInfo | null>(null);
+export const useArea = () => useContext(AreaContext);
 
 // ── buttons ─────────────────────────────────────────────────────────────────────────────────────
 type ButtonVariant = 'primary' | 'dark' | 'outline' | 'ghost' | 'danger';
 const BTN: Record<ButtonVariant, string> = {
-  primary: 'bg-[#F5D103] text-[#18181B] hover:bg-[#FDE047] border border-[#E5C200]',
-  dark: 'bg-[#18181B] text-white hover:bg-black border border-[#18181B]',
-  outline: 'bg-white text-[#18181B] hover:bg-slate-50 border border-[#E2E8F0]',
-  ghost: 'bg-transparent text-[#18181B] hover:bg-slate-100 border border-transparent',
+  primary: 'bg-[#F5D103] text-[#18181B] hover:bg-[#FFDE21] border border-[#D9B800] shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)]',
+  dark: 'bg-[#18181B] text-white hover:bg-[#2A2A2E] border border-[#18181B]',
+  outline: 'bg-white text-[#18181B] hover:bg-[#F6F7F9] border border-[#D9DDE3]',
+  ghost: 'bg-transparent text-[#3F4652] hover:bg-[#EEF0F3] border border-transparent',
   danger: 'bg-white text-red-700 hover:bg-red-50 border border-red-200',
 };
 
 export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant; size?: 'sm' | 'md'; icon?: React.ReactNode; loading?: boolean;
-}> = ({ variant = 'outline', size = 'md', icon, loading, children, className, disabled, type = 'button', ...rest }) => (
+}> = ({ variant = 'outline', size = 'md', icon, loading, children, className, disabled, type = 'button', title, ...rest }) => (
   <button
     type={type}
     disabled={disabled || loading}
+    title={title ?? (typeof rest['aria-label'] === 'string' ? rest['aria-label'] : undefined)}
     className={cx(
-      'inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5D103] whitespace-nowrap',
-      size === 'sm' ? 'h-8 px-2.5 text-xs' : 'h-10 px-4 text-sm',
+      'inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#F5D103] whitespace-nowrap',
+      size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-10 px-4 text-sm',
       BTN[variant], className,
     )}
     {...rest}
@@ -38,107 +56,150 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
 );
 
 // ── layout ──────────────────────────────────────────────────────────────────────────────────────
-/** A screen: title, one-line purpose, a "How this works" guide, and the main actions. */
+function useGuideState(id: string) {
+  const key = `admin-guide-${id}`;
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(key) !== 'closed'; } catch { return true; }
+  });
+  const set = (v: boolean) => {
+    setOpen(v);
+    try { localStorage.setItem(key, v ? 'open' : 'closed'); } catch { /* private mode */ }
+  };
+  return [open, set] as const;
+}
+
+/**
+ * A screen: coloured area icon, title, one-sentence purpose, the main actions, and an optional
+ * "How this works" guide shown as short step cards that can be hidden and brought back.
+ */
 export const Screen: React.FC<{
   title: string; intro: string; guide?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode;
-}> = ({ title, intro, guide, actions, children }) => (
-  <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-      <div className="min-w-0">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
-        <p className="text-sm text-slate-500 mt-1 max-w-3xl">{intro}</p>
-      </div>
-      {actions && <div className="flex flex-wrap gap-2 shrink-0">{actions}</div>}
-    </div>
-    {guide && <Guide id={title}>{guide}</Guide>}
-    {children}
-  </div>
-);
-
-/** Collapsible plain-English help. Remembers if it was closed. */
-export const Guide: React.FC<{ id: string; children: React.ReactNode }> = ({ id, children }) => {
-  const storageKey = `admin-guide-${id}`;
-  const [open, setOpen] = useState(() => {
-    try { return localStorage.getItem(storageKey) !== 'closed'; } catch { return true; }
-  });
-  const toggle = () => {
-    setOpen((o) => {
-      try { localStorage.setItem(storageKey, o ? 'closed' : 'open'); } catch { /* private mode */ }
-      return !o;
-    });
-  };
+}> = ({ title, intro, guide, actions, children }) => {
+  const info = useArea();
+  const Icon = info?.icon;
+  const [guideOpen, setGuideOpen] = useGuideState(title);
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50/60">
-      <button type="button" onClick={toggle} className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold text-amber-900 cursor-pointer">
-        <Lightbulb className="w-4 h-4" /> How this works
-        <ChevronDown className={cx('w-4 h-4 ml-auto transition-transform', open && 'rotate-180')} />
-      </button>
-      {open && <div className="px-4 pb-4 text-sm text-amber-950/90 space-y-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1 [&_b]:font-semibold">{children}</div>}
+    <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="flex items-start gap-4 min-w-0">
+          {Icon && info && (
+            <div className={cx('w-12 h-12 rounded-xl flex items-center justify-center shrink-0', AREA[info.area].tile)}>
+              <Icon className="w-6 h-6" strokeWidth={1.75} />
+            </div>
+          )}
+          <div className="min-w-0">
+            {info && <div className={cx('text-[13px] font-medium', AREA[info.area].text)}>{info.area}</div>}
+            <h1 className="text-[26px] sm:text-[28px] leading-tight font-semibold tracking-[-0.01em] text-[#18181B]">{title}</h1>
+            <p className="text-[15px] text-[#5F6B7A] mt-1 max-w-2xl">{intro}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {guide && !guideOpen && <Button variant="ghost" icon={<Lightbulb className="w-4 h-4" />} onClick={() => setGuideOpen(true)}>How this works</Button>}
+          {actions}
+        </div>
+      </header>
+      {guide && guideOpen && <GuidePanel onClose={() => setGuideOpen(false)}>{guide}</GuidePanel>}
+      {children}
     </div>
   );
+};
+
+/** "How this works": each list item becomes a small card; numbered when it is a sequence (<ol>). */
+const GuidePanel: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => (
+  <section aria-label="How this works" className="rounded-xl bg-[#FFFBE6] border border-[#F3E3A1] px-4 sm:px-5 py-4">
+    <div className="flex items-center gap-2 mb-3">
+      <Lightbulb className="w-4 h-4 text-[#A16207]" />
+      <h2 className="text-sm font-semibold text-[#713F12]">How this works</h2>
+      <button type="button" onClick={onClose} className="ml-auto text-[13px] font-medium text-[#854D0E] hover:underline cursor-pointer">Hide</button>
+    </div>
+    <div className={cx(
+      'text-[13.5px] leading-snug text-[#3B3320] [&_b]:font-semibold',
+      '[&_ol]:grid [&_ol]:gap-2.5 [&_ol]:sm:grid-cols-2 [&_ol]:xl:grid-cols-4 [&_ol]:[counter-reset:step]',
+      '[&_ul]:grid [&_ul]:gap-2.5 [&_ul]:sm:grid-cols-2 [&_ul]:xl:grid-cols-4',
+      '[&_li]:bg-white [&_li]:rounded-lg [&_li]:border [&_li]:border-[#F1E6B8] [&_li]:px-3 [&_li]:py-2.5',
+      '[&_ol>li]:[counter-increment:step] [&_ol>li]:before:content-[counter(step)] [&_ol>li]:before:inline-flex [&_ol>li]:before:items-center [&_ol>li]:before:justify-center',
+      '[&_ol>li]:before:w-5 [&_ol>li]:before:h-5 [&_ol>li]:before:rounded-full [&_ol>li]:before:bg-[#18181B] [&_ol>li]:before:text-[#F5D103] [&_ol>li]:before:text-[11px] [&_ol>li]:before:font-bold [&_ol>li]:before:mr-2 [&_ol>li]:before:align-[1px]',
+      '[&_p]:max-w-3xl',
+    )}>{children}</div>
+  </section>
+);
+
+/** Kept for screens that place a guide inside their own layout. */
+export const Guide: React.FC<{ id: string; children: React.ReactNode }> = ({ id, children }) => {
+  const [open, setOpen] = useGuideState(id);
+  return open ? <GuidePanel onClose={() => setOpen(false)}>{children}</GuidePanel>
+    : <Button variant="ghost" size="sm" icon={<Lightbulb className="w-4 h-4" />} onClick={() => setOpen(true)}>How this works</Button>;
 };
 
 export const Card: React.FC<{ title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode; className?: string; padded?: boolean }> = ({
   title, description, actions, children, className, padded = true,
 }) => (
-  <section className={cx('bg-white rounded-xl border border-[#E2E8F0] shadow-[0_1px_2px_rgba(0,0,0,0.03)]', className)}>
+  <section className={cx('bg-white rounded-xl border border-[#E4E7EC]', className)}>
     {(title || actions) && (
-      <header className="flex flex-wrap items-start justify-between gap-2 px-4 sm:px-5 pt-4">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-[#EEF0F3]">
         <div className="min-w-0">
-          {title && <h2 className="font-semibold text-[15px]">{title}</h2>}
-          {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+          {title && <h2 className="font-semibold text-[15px] text-[#18181B]">{title}</h2>}
+          {description && <p className="text-[13px] text-[#5F6B7A] mt-0.5">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </header>
     )}
-    <div className={padded ? 'p-4 sm:p-5' : title || actions ? 'pt-3' : ''}>{children}</div>
+    {children !== undefined && children !== null && <div className={padded ? 'p-4 sm:p-5' : ''}>{children}</div>}
   </section>
 );
 
-export const Stat: React.FC<{ label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: Tone; onClick?: () => void }> = ({ label, value, hint, tone, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={!onClick}
-    className={cx('text-left bg-white rounded-xl border border-[#E2E8F0] p-4 w-full', onClick && 'hover:border-[#18181B] cursor-pointer', !onClick && 'cursor-default')}
-  >
-    <div className="text-xs font-medium text-slate-500">{label}</div>
-    <div className={cx('text-2xl font-bold mt-1 tabular-nums', tone === 'red' && 'text-red-600', tone === 'amber' && 'text-amber-600', tone === 'green' && 'text-emerald-600')}>{value}</div>
-    {hint && <div className="text-xs text-slate-500 mt-1">{hint}</div>}
-  </button>
-);
+/** A big number with a label. Clickable when it leads somewhere. */
+export const Stat: React.FC<{ label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: Tone; onClick?: () => void }> = ({ label, value, hint, tone, onClick }) => {
+  const body = (
+    <>
+      <div className="text-[13px] text-[#5F6B7A]">{label}</div>
+      <div className={cx('text-[28px] leading-none font-semibold mt-2 tabular-nums tracking-tight', tone === 'red' && 'text-red-600', tone === 'amber' && 'text-amber-600', tone === 'green' && 'text-emerald-700')}>{value}</div>
+      {hint && <div className="text-[12.5px] text-[#5F6B7A] mt-2">{hint}</div>}
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className="group text-left bg-white rounded-xl border border-[#E4E7EC] p-4 w-full hover:border-[#18181B] cursor-pointer relative">
+      {body}<ChevronRight className="w-4 h-4 absolute top-4 right-3 text-[#C3C9D2] group-hover:text-[#18181B]" />
+    </button>
+  ) : <div className="bg-white rounded-xl border border-[#E4E7EC] p-4">{body}</div>;
+};
 
 // ── badges ──────────────────────────────────────────────────────────────────────────────────────
-const TONE: Record<Tone, string> = {
-  grey: 'bg-slate-100 text-slate-700 border-slate-200',
-  blue: 'bg-sky-50 text-sky-800 border-sky-200',
-  green: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  amber: 'bg-amber-50 text-amber-800 border-amber-200',
-  red: 'bg-red-50 text-red-700 border-red-200',
-  violet: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-  yellow: 'bg-[#FEF9C3] text-[#713F12] border-[#FDE047]',
+const TONE: Record<Tone, { box: string; dot: string }> = {
+  grey: { box: 'bg-[#F1F3F5] text-[#4A5361]', dot: 'bg-[#9AA3AF]' },
+  blue: { box: 'bg-sky-50 text-sky-800', dot: 'bg-sky-500' },
+  green: { box: 'bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
+  amber: { box: 'bg-amber-50 text-amber-800', dot: 'bg-amber-500' },
+  red: { box: 'bg-red-50 text-red-700', dot: 'bg-red-500' },
+  violet: { box: 'bg-indigo-50 text-indigo-800', dot: 'bg-indigo-500' },
+  yellow: { box: 'bg-[#FEF7C3] text-[#6B4A06]', dot: 'bg-[#E5B800]' },
 };
+/** A short status word with a coloured dot. */
 export const Badge: React.FC<{ tone?: Tone; children: React.ReactNode; title?: string }> = ({ tone = 'grey', children, title }) => (
-  <span title={title} className={cx('inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold whitespace-nowrap', TONE[tone])}>{children}</span>
+  <span title={title} className={cx('inline-flex items-center gap-1.5 pl-1.5 pr-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap align-middle', TONE[tone].box)}>
+    <span className={cx('w-1.5 h-1.5 rounded-full', TONE[tone].dot)} />{children}
+  </span>
 );
 export const OrderStatus: React.FC<{ status: string }> = ({ status }) => {
   const s = ORDER_STATUS[status] ?? { label: status, tone: 'grey' as Tone, help: '' };
   return <Badge tone={s.tone} title={s.help}>{s.label}</Badge>;
 };
-export const SampleTag: React.FC<{ show?: boolean }> = ({ show }) => (show ? <Badge tone="grey" title="Example data. Removed before launch.">Example</Badge> : null);
+export const SampleTag: React.FC<{ show?: boolean }> = ({ show }) => (show
+  ? <span title="Example data, removed before launch" className="inline-flex items-center px-1.5 py-px rounded border border-dashed border-[#C3C9D2] text-[11px] text-[#7A8594] align-middle">example</span>
+  : null);
 
 // ── form controls ───────────────────────────────────────────────────────────────────────────────
-const INPUT = 'w-full h-10 px-3 rounded-lg border border-[#E2E8F0] bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F5D103] focus:border-[#E5C200] disabled:bg-slate-50 disabled:text-slate-500';
+const INPUT = 'w-full h-10 px-3 rounded-lg border border-[#D9DDE3] bg-white text-[14px] text-[#18181B] placeholder:text-[#9AA3AF] focus:outline-none focus:ring-2 focus:ring-[#F5D103]/70 focus:border-[#C9A800] disabled:bg-[#F6F7F9] disabled:text-[#7A8594]';
 
 export const Field: React.FC<{ label: React.ReactNode; help?: React.ReactNode; error?: string | null; optional?: boolean; children: React.ReactNode; className?: string }> = ({
   label, help, error, optional, children, className,
 }) => (
   <label className={cx('block', className)}>
-    <span className="block text-[13px] font-semibold mb-1">
-      {label}{optional && <span className="font-normal text-slate-400"> (optional)</span>}
+    <span className="block text-[13.5px] font-medium text-[#18181B] mb-1.5">
+      {label}{optional && <span className="font-normal text-[#7A8594]"> · optional</span>}
     </span>
     {children}
-    {error ? <span className="block text-xs text-red-600 mt-1">{error}</span> : help ? <span className="block text-xs text-slate-500 mt-1">{help}</span> : null}
+    {error ? <span className="block text-[12.5px] text-red-600 mt-1.5">{error}</span> : help ? <span className="block text-[12.5px] text-[#5F6B7A] mt-1.5">{help}</span> : null}
   </label>
 );
 
@@ -147,15 +208,15 @@ export const TextInput: React.FC<Omit<React.InputHTMLAttributes<HTMLInputElement
 );
 
 export const TextArea: React.FC<Omit<React.ComponentProps<'textarea'>, 'onChange' | 'value'> & { value: string | null | undefined; onChange: (v: string) => void }> = ({ value, onChange, className, rows = 4, ...rest }) => (
-  <textarea {...rest} rows={rows} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={cx(INPUT, 'h-auto py-2 leading-relaxed', className)} />
+  <textarea {...rest} rows={rows} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={cx(INPUT, 'h-auto py-2.5 leading-relaxed', className)} />
 );
 
-/** Whole numbers. Empty = null. */
+/** Whole numbers (or decimals with `decimals`). Empty = null. */
 export const NumberInput: React.FC<{ value: number | null | undefined; onChange: (v: number | null) => void; min?: number; max?: number; step?: number; placeholder?: string; suffix?: string; disabled?: boolean; className?: string; decimals?: boolean }> = ({
   value, onChange, min, max, step, placeholder, suffix, disabled, className, decimals,
 }) => {
   const [text, setText] = useState(value == null ? '' : String(value));
-  useEffect(() => { setText((t) => (Number(t) === value && t !== '' ? t : value == null ? '' : String(value))); }, [value]);
+  useEffect(() => { setText((t) => (t !== '' && t !== '-' && Number(t) === value ? t : value == null ? (t === '-' ? t : '') : String(value))); }, [value]);
   return (
     <div className={cx('relative', className)}>
       <input
@@ -170,9 +231,9 @@ export const NumberInput: React.FC<{ value: number | null | undefined; onChange:
           if (t === '' || t === '-') onChange(null);
           else if (Number.isFinite(Number(t))) onChange(Number(t));
         }}
-        className={cx(INPUT, suffix && 'pr-12')}
+        className={cx(INPUT, suffix && 'pr-14')}
       />
-      {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">{suffix}</span>}
+      {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-[#7A8594] pointer-events-none">{suffix}</span>}
     </div>
   );
 };
@@ -189,7 +250,7 @@ export const MoneyInput: React.FC<{ value: number | null | undefined; onChange: 
   }, [value]);
   return (
     <div className={cx('relative', className)}>
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 pointer-events-none">£</span>
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-[#7A8594] pointer-events-none">£</span>
       <input
         inputMode="decimal"
         value={text}
@@ -211,15 +272,31 @@ export const MoneyInput: React.FC<{ value: number | null | undefined; onChange: 
 };
 
 export interface Option { value: string; label: string; hint?: string }
-export const Select: React.FC<{ value: string | null | undefined; onChange: (v: string) => void; options: Option[]; placeholder?: string; disabled?: boolean; className?: string }> = ({
-  value, onChange, options, placeholder, disabled, className,
+export const Select: React.FC<{ value: string | null | undefined; onChange: (v: string) => void; options: Option[]; placeholder?: string; disabled?: boolean; className?: string; 'aria-label'?: string }> = ({
+  value, onChange, options, placeholder, disabled, className, ...rest
 }) => (
   <div className={cx('relative', className)}>
-    <select value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={cx(INPUT, 'appearance-none pr-9 cursor-pointer')}>
+    <select value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={rest['aria-label']} className={cx(INPUT, 'appearance-none pr-9 cursor-pointer')}>
       {placeholder !== undefined && <option value="">{placeholder}</option>}
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
-    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#7A8594] pointer-events-none" />
+  </div>
+);
+
+/** A row of mutually exclusive choices (e.g. "Everyone · Computers only · Phones only · Nobody"). */
+export const Segmented: React.FC<{ value: string; onChange: (v: string) => void; options: Array<{ value: string; label: string; icon?: React.ReactNode }>; disabled?: boolean; size?: 'sm' | 'md' }> = ({
+  value, onChange, options, disabled, size = 'md',
+}) => (
+  <div role="radiogroup" className="inline-flex flex-wrap gap-1 p-1 rounded-xl bg-[#EEF0F3]">
+    {options.map((o) => (
+      <button key={o.value} type="button" role="radio" aria-checked={value === o.value} disabled={disabled} onClick={() => onChange(o.value)}
+        className={cx('inline-flex items-center gap-1.5 rounded-lg font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+          size === 'sm' ? 'h-7 px-2.5 text-[12.5px]' : 'h-9 px-3 text-[13.5px]',
+          value === o.value ? 'bg-white text-[#18181B] shadow-[0_1px_2px_rgba(16,24,40,0.12)]' : 'text-[#4A5361] hover:text-[#18181B]')}>
+        {o.icon}{o.label}
+      </button>
+    ))}
   </div>
 );
 
@@ -237,14 +314,14 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cx('relative mt-0.5 w-10 h-6 rounded-full shrink-0 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5D103]',
-          checked ? 'bg-emerald-500' : 'bg-slate-300')}
+          checked ? 'bg-emerald-600' : 'bg-[#C3C9D2]')}
       >
         <span className={cx('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform', checked && 'translate-x-4')} />
       </button>
       {(label || description) && (
         <label htmlFor={id} className="cursor-pointer min-w-0">
-          {label && <span className="block text-sm font-semibold">{label}</span>}
-          {description && <span className="block text-xs text-slate-500 mt-0.5">{description}</span>}
+          {label && <span className="block text-[14px] font-medium">{label}</span>}
+          {description && <span className="block text-[12.5px] text-[#5F6B7A] mt-0.5">{description}</span>}
         </label>
       )}
     </div>
@@ -255,8 +332,8 @@ export const Checkbox: React.FC<{ checked: boolean; onChange: (v: boolean) => vo
   <label className={cx('flex items-start gap-2.5', disabled ? 'opacity-60' : 'cursor-pointer')}>
     <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[#18181B] cursor-pointer" />
     <span className="min-w-0">
-      <span className="block text-sm">{label}</span>
-      {description && <span className="block text-xs text-slate-500">{description}</span>}
+      <span className="block text-[14px]">{label}</span>
+      {description && <span className="block text-[12.5px] text-[#5F6B7A]">{description}</span>}
     </span>
   </label>
 );
@@ -272,10 +349,10 @@ export const SearchInput: React.FC<{ value: string; onChange: (v: string) => voi
   }, [text, value, onChange]);
   return (
     <div className={cx('relative', className)}>
-      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-      <input autoFocus={autoFocus} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} className={cx(INPUT, 'pl-9 pr-8')} />
+      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7A8594]" />
+      <input autoFocus={autoFocus} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder} className={cx(INPUT, 'pl-9 pr-8 bg-[#F6F7F9] border-transparent focus:bg-white')} />
       {text && (
-        <button type="button" aria-label="Clear search" onClick={() => { setText(''); onChange(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+        <button type="button" aria-label="Clear search" onClick={() => { setText(''); onChange(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#7A8594] hover:text-[#18181B] cursor-pointer">
           <X className="w-3.5 h-3.5" />
         </button>
       )}
@@ -283,32 +360,36 @@ export const SearchInput: React.FC<{ value: string; onChange: (v: string) => voi
   );
 };
 
-/** Row of filter buttons with optional counts. */
+/** Filter choices with optional counts. */
 export const Chips: React.FC<{ value: string; onChange: (v: string) => void; options: Array<{ value: string; label: string; count?: number | null }> }> = ({ value, onChange, options }) => (
-  <div className="flex flex-wrap gap-1.5">
+  <div className="flex flex-wrap gap-1.5" role="radiogroup">
     {options.map((o) => (
       <button
         key={o.value}
         type="button"
+        role="radio"
+        aria-checked={value === o.value}
         onClick={() => onChange(o.value)}
-        className={cx('h-8 px-3 rounded-full border text-xs font-semibold cursor-pointer transition-colors',
-          value === o.value ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-slate-700 border-[#E2E8F0] hover:border-slate-400')}
+        className={cx('h-8 px-3 rounded-lg border text-[13px] font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5',
+          value === o.value ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#3F4652] border-[#D9DDE3] hover:border-[#9AA3AF]')}
       >
-        {o.label}{o.count != null && <span className={cx('ml-1.5', value === o.value ? 'text-[#F5D103]' : 'text-slate-400')}>{o.count}</span>}
+        {o.label}{o.count != null && <span className={cx('tabular-nums text-[12px]', value === o.value ? 'text-[#F5D103]' : 'text-[#7A8594]')}>{o.count}</span>}
       </button>
     ))}
   </div>
 );
 
 export const Tabs: React.FC<{ value: string; onChange: (v: string) => void; tabs: Array<{ value: string; label: string; hidden?: boolean }> }> = ({ value, onChange, tabs }) => (
-  <div className="flex gap-1 border-b border-[#E2E8F0] overflow-x-auto">
+  <div className="flex gap-6 border-b border-[#E4E7EC] overflow-x-auto" role="tablist">
     {tabs.filter((t) => !t.hidden).map((t) => (
       <button
         key={t.value}
         type="button"
+        role="tab"
+        aria-selected={value === t.value}
         onClick={() => onChange(t.value)}
-        className={cx('px-3 sm:px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px whitespace-nowrap cursor-pointer',
-          value === t.value ? 'border-[#F5D103] text-[#18181B]' : 'border-transparent text-slate-500 hover:text-[#18181B]')}
+        className={cx('pb-2.5 pt-1 text-[14px] font-medium border-b-2 -mb-px whitespace-nowrap cursor-pointer',
+          value === t.value ? 'border-[#18181B] text-[#18181B]' : 'border-transparent text-[#5F6B7A] hover:text-[#18181B]')}
       >
         {t.label}
       </button>
@@ -319,51 +400,60 @@ export const Tabs: React.FC<{ value: string; onChange: (v: string) => void; tabs
 // ── tables & states ─────────────────────────────────────────────────────────────────────────────
 export const Table: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
   <div className={cx('overflow-x-auto', className)}>
-    <table className="w-full text-sm border-collapse">{children}</table>
+    <table className="w-full text-[14px] border-collapse">{children}</table>
   </div>
 );
 export const Th: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = ({ className, ...rest }) => (
-  <th {...rest} className={cx('text-left text-[11px] uppercase tracking-wide font-semibold text-slate-500 px-3 py-2.5 border-b border-[#E2E8F0] bg-slate-50/70 whitespace-nowrap', className)} />
+  <th {...rest} className={cx('text-left text-[12.5px] font-medium text-[#5F6B7A] px-4 py-2.5 border-b border-[#E4E7EC] bg-[#FAFBFC] whitespace-nowrap', className)} />
 );
 export const Td: React.FC<React.TdHTMLAttributes<HTMLTableCellElement>> = ({ className, ...rest }) => (
-  <td {...rest} className={cx('px-3 py-2.5 border-b border-slate-100 align-middle', className)} />
+  <td {...rest} className={cx('px-4 py-3 border-b border-[#F0F2F5] align-middle', className)} />
 );
-export const Tr: React.FC<React.HTMLAttributes<HTMLTableRowElement> & { onClick?: () => void }> = ({ className, onClick, ...rest }) => (
-  <tr {...rest} onClick={onClick} className={cx(onClick && 'cursor-pointer hover:bg-amber-50/40', className)} />
+/** A table row. Clickable rows highlight and show an arrow, so it is clear they open something. */
+export const Tr: React.FC<React.HTMLAttributes<HTMLTableRowElement> & { onClick?: () => void }> = ({ className, onClick, children, ...rest }) => (
+  <tr {...rest} onClick={onClick} className={cx(onClick && [
+    'cursor-pointer hover:bg-[#FFFCEB]',
+    '[&>td:last-child]:relative [&>td:last-child]:pr-9',
+    "[&>td:last-child]:after:content-['›'] [&>td:last-child]:after:absolute [&>td:last-child]:after:right-3.5 [&>td:last-child]:after:top-1/2 [&>td:last-child]:after:-translate-y-1/2",
+    '[&>td:last-child]:after:text-[20px] [&>td:last-child]:after:leading-none [&>td:last-child]:after:text-[#C3C9D2] hover:[&>td:last-child]:after:text-[#18181B]',
+  ].join(' '), className)}>
+    {children}
+  </tr>
 );
 
 export const Loading: React.FC<{ text?: string }> = ({ text = 'Loading…' }) => (
-  <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500"><Loader2 className="w-4 h-4 animate-spin" />{text}</div>
+  <div className="flex items-center justify-center gap-2 py-14 text-[14px] text-[#5F6B7A]"><Loader2 className="w-4 h-4 animate-spin" />{text}</div>
 );
 
 export const ErrorState: React.FC<{ error: unknown; onRetry?: () => void; text: string }> = ({ onRetry, text }) => (
-  <div className="flex flex-col items-center gap-3 py-10 text-center">
+  <div className="flex flex-col items-center gap-3 py-12 text-center">
     <AlertTriangle className="w-6 h-6 text-red-500" />
-    <p className="text-sm text-slate-600 max-w-sm">{text}</p>
-    {onRetry && <Button size="sm" onClick={onRetry}>Try again</Button>}
+    <p className="text-[14px] text-[#3F4652] max-w-sm">{text}</p>
+    {onRetry && <Button size="sm" onClick={onRetry}>Load again</Button>}
   </div>
 );
 
 export const Empty: React.FC<{ icon?: React.ReactNode; title: string; text?: React.ReactNode; action?: React.ReactNode }> = ({ icon, title, text, action }) => (
-  <div className="flex flex-col items-center text-center gap-2 py-12 px-4">
-    {icon && <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 mb-1">{icon}</div>}
-    <p className="font-semibold">{title}</p>
-    {text && <p className="text-sm text-slate-500 max-w-md">{text}</p>}
+  <div className="flex flex-col items-center text-center gap-2 py-14 px-4">
+    {icon && <div className="w-12 h-12 rounded-xl bg-[#F1F3F5] flex items-center justify-center text-[#5F6B7A] mb-1">{icon}</div>}
+    <p className="font-semibold text-[15px]">{title}</p>
+    {text && <p className="text-[14px] text-[#5F6B7A] max-w-md">{text}</p>}
     {action && <div className="mt-2">{action}</div>}
   </div>
 );
 
 export const Notice: React.FC<{ tone?: 'info' | 'warning' | 'success' | 'danger'; children: React.ReactNode; action?: React.ReactNode }> = ({ tone = 'info', children, action }) => {
   const styles = {
-    info: 'bg-sky-50 border-sky-200 text-sky-900',
-    warning: 'bg-amber-50 border-amber-200 text-amber-900',
-    success: 'bg-emerald-50 border-emerald-200 text-emerald-900',
-    danger: 'bg-red-50 border-red-200 text-red-900',
+    info: 'bg-sky-50 border-sky-200 text-sky-950',
+    warning: 'bg-amber-50 border-amber-200 text-amber-950',
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-950',
+    danger: 'bg-red-50 border-red-200 text-red-950',
   }[tone];
+  const iconTone = { info: 'text-sky-600', warning: 'text-amber-600', success: 'text-emerald-600', danger: 'text-red-600' }[tone];
   const Icon = tone === 'success' ? CheckCircle2 : tone === 'info' ? Info : AlertTriangle;
   return (
-    <div className={cx('flex flex-wrap sm:flex-nowrap items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm', styles)}>
-      <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+    <div className={cx('flex flex-wrap sm:flex-nowrap items-start gap-2.5 rounded-xl border px-4 py-3 text-[14px]', styles)}>
+      <Icon className={cx('w-4 h-4 mt-0.5 shrink-0', iconTone)} />
       <div className="flex-1 min-w-0">{children}</div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -372,10 +462,10 @@ export const Notice: React.FC<{ tone?: 'info' | 'warning' | 'success' | 'danger'
 
 /** Label / value pairs for detail panels. */
 export const Facts: React.FC<{ items: Array<[React.ReactNode, React.ReactNode] | null | false> }> = ({ items }) => (
-  <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-4 gap-y-1.5 text-sm">
+  <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-5 gap-y-2 text-[14px]">
     {items.filter(Boolean).map((it, i) => {
       const [k, v] = it as [React.ReactNode, React.ReactNode];
-      return <React.Fragment key={i}><dt className="text-slate-500">{k}</dt><dd className="min-w-0 break-words">{v ?? '—'}</dd></React.Fragment>;
+      return <React.Fragment key={i}><dt className="text-[#5F6B7A]">{k}</dt><dd className="min-w-0 break-words">{v ?? '—'}</dd></React.Fragment>;
     })}
   </dl>
 );
@@ -394,25 +484,27 @@ function useEscape(onClose: () => void, active = true) {
   }, [active]);
 }
 
-/** Side panel for viewing / editing one thing. Full screen on phones. */
-export const Drawer: React.FC<{ open: boolean; onClose: () => void; title: React.ReactNode; subtitle?: React.ReactNode; footer?: React.ReactNode; children: React.ReactNode; wide?: boolean }> = ({
-  open, onClose, title, subtitle, footer, children, wide,
+/** Side panel for viewing / editing one thing. Full screen on phones. Carries the area colour. */
+export const Drawer: React.FC<{ open: boolean; onClose: () => void; title: React.ReactNode; subtitle?: React.ReactNode; footer?: React.ReactNode; children: React.ReactNode; wide?: boolean; full?: boolean }> = ({
+  open, onClose, title, subtitle, footer, children, wide, full,
 }) => {
+  const info = useArea();
   useEscape(onClose, open);
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[80] flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" className={cx('relative bg-[#F8FAFC] w-full h-full flex flex-col shadow-2xl', wide ? 'sm:max-w-4xl' : 'sm:max-w-2xl')}>
-        <header className="flex items-start gap-3 px-4 sm:px-6 py-4 bg-white border-b border-[#E2E8F0]">
+      <div className="absolute inset-0 bg-[#0F1115]/45" onClick={onClose} />
+      <div role="dialog" aria-modal="true" className={cx('relative bg-[#F6F7F9] w-full h-full flex flex-col shadow-2xl', full ? 'sm:max-w-[min(1500px,96vw)]' : wide ? 'sm:max-w-4xl' : 'sm:max-w-2xl')}>
+        {info && <div className={cx('h-1 shrink-0', AREA[info.area].bar)} />}
+        <header className="flex items-start gap-3 px-4 sm:px-6 py-4 bg-white border-b border-[#E4E7EC]">
           <div className="min-w-0 flex-1">
-            <h2 className="font-bold text-lg leading-tight">{title}</h2>
-            {subtitle && <div className="text-sm text-slate-500 mt-0.5">{subtitle}</div>}
+            <h2 className="font-semibold text-[19px] leading-tight">{title}</h2>
+            {subtitle && <div className="text-[13.5px] text-[#5F6B7A] mt-1">{subtitle}</div>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 -m-1 rounded-lg hover:bg-slate-100 cursor-pointer"><X className="w-5 h-5" /></button>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close" icon={<X className="w-4 h-4" />}>Close</Button>
         </header>
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-4">{children}</div>
-        {footer && <footer className="px-4 sm:px-6 py-3 bg-white border-t border-[#E2E8F0] flex flex-wrap justify-end gap-2">{footer}</footer>}
+        {footer && <footer className="px-4 sm:px-6 py-3 bg-white border-t border-[#E4E7EC] flex flex-wrap justify-end items-center gap-2">{footer}</footer>}
       </div>
     </div>,
     document.body,
@@ -426,15 +518,15 @@ export const Modal: React.FC<{ open: boolean; onClose: () => void; title: React.
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/45" onClick={onClose} />
+      <div className="absolute inset-0 bg-[#0F1115]/50" onClick={onClose} />
       <div role="dialog" aria-modal="true" className={cx('relative bg-white w-full rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]',
         size === 'sm' ? 'sm:max-w-md' : size === 'md' ? 'sm:max-w-2xl' : 'sm:max-w-5xl')}>
-        <header className="flex items-start gap-3 px-5 pt-5 pb-2">
-          <h2 className="font-bold text-lg flex-1">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 -m-1 rounded-lg hover:bg-slate-100 cursor-pointer"><X className="w-5 h-5" /></button>
+        <header className="flex items-start gap-3 px-5 pt-5 pb-3">
+          <h2 className="font-semibold text-[18px] flex-1">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 -m-1 rounded-lg hover:bg-[#EEF0F3] cursor-pointer"><X className="w-5 h-5" /></button>
         </header>
         <div className="px-5 pb-5 overflow-y-auto space-y-4">{children}</div>
-        {footer && <footer className="px-5 py-3 border-t border-[#E2E8F0] flex flex-wrap justify-end gap-2">{footer}</footer>}
+        {footer && <footer className="px-5 py-3 border-t border-[#E4E7EC] flex flex-wrap justify-end gap-2">{footer}</footer>}
       </div>
     </div>,
     document.body,
@@ -465,7 +557,7 @@ export const ConfirmButton: React.FC<{
           <Button variant={danger ? 'dark' : 'primary'} className={danger ? '!bg-red-600 !border-red-600 hover:!bg-red-700' : ''} loading={busy} disabled={!!reason && !why.trim()} onClick={go}>{confirmLabel}</Button>
         </>}
       >
-        <div className="text-sm text-slate-600">{text}</div>
+        <div className="text-[14px] text-[#3F4652]">{text}</div>
         {reason && <Field label={reason}><TextArea rows={3} value={why} onChange={setWhy} autoFocus /></Field>}
       </Modal>
     </>
@@ -479,7 +571,7 @@ export const Toaster: React.FC = () => {
   return createPortal(
     <div aria-live="polite" className="fixed z-[100] bottom-4 right-4 left-4 sm:left-auto flex flex-col gap-2 sm:w-96 pointer-events-none">
       {items.map((t) => (
-        <div key={t.id} role="status" className={cx('pointer-events-auto flex items-start gap-2.5 rounded-xl px-4 py-3 shadow-xl text-sm border',
+        <div key={t.id} role="status" className={cx('pointer-events-auto flex items-start gap-2.5 rounded-xl px-4 py-3 shadow-xl text-[14px] border',
           t.kind === 'error' ? 'bg-red-600 text-white border-red-700' : 'bg-[#18181B] text-white border-black')}>
           {t.kind === 'error' ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> : <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-[#F5D103]" />}
           <span className="flex-1">{t.text}</span>
@@ -493,7 +585,7 @@ export const Toaster: React.FC = () => {
 
 /** Small square product/brand picture with a fallback. */
 export const Thumb: React.FC<{ src?: string | null; alt?: string; size?: number; rounded?: boolean }> = ({ src, alt = '', size = 40, rounded }) => (
-  <div className={cx('shrink-0 bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center', rounded ? 'rounded-full' : 'rounded-lg')} style={{ width: size, height: size }}>
-    {src ? <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover" /> : <span className="text-[10px] text-slate-400">No photo</span>}
+  <div className={cx('shrink-0 bg-[#F1F3F5] border border-[#E4E7EC] overflow-hidden flex items-center justify-center', rounded ? 'rounded-full' : 'rounded-lg')} style={{ width: size, height: size }}>
+    {src ? <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover" /> : <ImageOff aria-label="No photo" className="w-1/2 h-1/2 max-w-5 max-h-5 text-[#C3C9D2]" />}
   </div>
 );

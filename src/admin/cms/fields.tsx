@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Bold, ChevronDown, Copy, Heading2, Heading3, ImagePlus, Italic, Link2, List, ListOrdered, Plus, Trash2 } from 'lucide-react';
+import { AlignLeft, ArrowDown, ArrowUp, Bold, ChevronDown, Copy, Hash, Heading2, Heading3, Image as ImageIcon, ImagePlus, Italic, LayoutGrid, Link2, List, ListChecks, ListOrdered, MousePointerClick, Palette, Plus, Shapes, ToggleRight, Trash2, Type, Video } from 'lucide-react';
 import { CmsIcon } from '../../cms/icons';
 import { RichText } from '../../cms/components';
 import { mediaUrl } from '../lib';
@@ -18,13 +18,46 @@ export interface Schema {
 type Img = { desktop: string | null; mobile: string | null; alt: string };
 type Lnk = { label: string; href: string };
 
-const kindOf = (s: Schema): string => {
+export const kindOf = (s: Schema): string => {
   if (s['x-kind']) return s['x-kind'];
   if (s.enum) return 'enum';
   const t = Array.isArray(s.type) ? s.type.find((x) => x !== 'null') : s.type;
   if (t === 'array') return s.items?.type === 'string' || s.items?.['x-kind'] === undefined && !s.items?.properties ? 'textlist' : 'list';
   return t ?? 'string';
 };
+
+/** What each kind of field is called and how it looks, so words, pictures, buttons and lists are easy to tell apart. */
+export const FIELD_TYPES: Record<string, { name: string; icon: React.ElementType; tone: string }> = {
+  string: { name: 'Words', icon: Type, tone: 'bg-slate-100 text-slate-700' },
+  richtext: { name: 'Paragraphs', icon: AlignLeft, tone: 'bg-slate-100 text-slate-700' },
+  image: { name: 'Picture', icon: ImageIcon, tone: 'bg-sky-100 text-sky-800' },
+  link: { name: 'Button', icon: MousePointerClick, tone: 'bg-amber-100 text-amber-800' },
+  href: { name: 'Link', icon: Link2, tone: 'bg-amber-100 text-amber-800' },
+  list: { name: 'List', icon: List, tone: 'bg-violet-100 text-violet-800' },
+  textlist: { name: 'List of lines', icon: List, tone: 'bg-violet-100 text-violet-800' },
+  icon: { name: 'Icon', icon: Shapes, tone: 'bg-emerald-100 text-emerald-800' },
+  color: { name: 'Colour', icon: Palette, tone: 'bg-pink-100 text-pink-800' },
+  number: { name: 'Number', icon: Hash, tone: 'bg-slate-100 text-slate-700' },
+  boolean: { name: 'On / off', icon: ToggleRight, tone: 'bg-slate-100 text-slate-700' },
+  enum: { name: 'Choice', icon: ListChecks, tone: 'bg-slate-100 text-slate-700' },
+  collection: { name: 'Product shelf', icon: LayoutGrid, tone: 'bg-emerald-100 text-emerald-800' },
+  video: { name: 'Video', icon: Video, tone: 'bg-sky-100 text-sky-800' },
+};
+export const typeOf = (s: Schema) => FIELD_TYPES[kindOf(s)] ?? FIELD_TYPES.string;
+
+/** Small coloured marker shown before every field's name. */
+export const TypeMark: React.FC<{ schema: Schema; withName?: boolean }> = ({ schema, withName }) => {
+  const t = typeOf(schema);
+  const Icon = t.icon;
+  return (
+    <span title={t.name} className={cx('inline-flex items-center gap-1 rounded-md align-middle shrink-0', withName ? 'h-6 px-1.5 text-[12px] font-medium' : 'w-6 h-6 justify-center', t.tone)}>
+      <Icon className="w-3.5 h-3.5" strokeWidth={2} />{withName && t.name}
+    </span>
+  );
+};
+const Labelled: React.FC<{ schema: Schema; label: React.ReactNode }> = ({ schema, label }) => (
+  <span className="inline-flex items-center gap-2"><TypeMark schema={schema} /><span>{label}</span></span>
+);
 
 /** An empty value for a new list item. */
 export function blankFor(s: Schema): unknown {
@@ -73,22 +106,22 @@ export const FieldEditor: React.FC<{ schema: Schema; value: unknown; onChange: (
   const helpText = help ?? schema.description ?? undefined;
   // optional pictures / buttons can be added or removed
   if (optional && (k === 'image' || k === 'link') && (value === undefined || value === null)) {
-    return <Field label={label} optional help={helpText}><Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => onChange(blankFor(schema))}>{k === 'image' ? 'Add a picture' : 'Add a button'}</Button></Field>;
+    return <Field label={<Labelled schema={schema} label={label} />} optional help={helpText}><Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => onChange(blankFor(schema))}>{k === 'image' ? 'Add a picture' : 'Add a button'}</Button></Field>;
   }
   const remove = optional && (k === 'image' || k === 'link') ? <button type="button" className="text-xs text-red-700 underline cursor-pointer ml-2" onClick={() => onChange(undefined)}>remove</button> : null;
   switch (k) {
-    case 'image': return <Field label={<>{label}{remove}</>} help={helpText}><ImageSlot value={value as Img} onChange={onChange} /></Field>;
-    case 'link': return <Field label={<>{label}{remove}</>} help={helpText}><LinkPicker value={value as Lnk} onChange={onChange} maxLength={schema.properties?.label?.maxLength} /></Field>;
-    case 'href': return <div><DestinationPicker value={(value as string) ?? ''} onChange={onChange} label={label} />{helpText && <p className="text-xs text-slate-500 mt-1">{helpText}</p>}</div>;
-    case 'richtext': return <Field label={label} help={helpText}><RichTextEditor value={(value as string) ?? ''} onChange={onChange} /></Field>;
-    case 'color': return <Field label={label} help={helpText}><ColorField value={(value as string) ?? ''} onChange={onChange} /></Field>;
-    case 'icon': return <Field label={label} help={helpText}><IconPicker value={(value as string) ?? ''} options={schema.enum ?? []} onChange={onChange} /></Field>;
-    case 'collection': return <Field label={label} help={helpText ?? 'Which product shelf to show. Change its products in Categories & brands → Homepage shelves.'}><ShelfSelect value={(value as string) ?? ''} onChange={onChange} /></Field>;
-    case 'video': return <Field label={label} help={helpText ?? 'Web address of the video file (ends in .mp4) or a YouTube link.'}><TextInput value={(value as string) ?? ''} onChange={onChange} placeholder="https://" /></Field>;
-    case 'enum': return <Field label={label} help={helpText}><Select value={(value as string) ?? ''} onChange={onChange} options={(schema.enum ?? []).map((e) => ({ value: e, label: pretty(e) }))} /></Field>;
-    case 'boolean': return <Toggle checked={value === true} onChange={onChange} label={label} description={helpText} />;
-    case 'number': return <Field label={label} help={helpText}><NumberInput decimals value={(value as number) ?? null} onChange={(v) => onChange(v ?? 0)} /></Field>;
-    case 'textlist': return <Field label={label} help={helpText}><StringList value={(value as string[]) ?? []} onChange={onChange} /></Field>;
+    case 'image': return <Field label={<><Labelled schema={schema} label={label} />{remove}</>} help={helpText}><ImageSlot value={value as Img} onChange={onChange} /></Field>;
+    case 'link': return <Field label={<><Labelled schema={schema} label={label} />{remove}</>} help={helpText}><LinkPicker value={value as Lnk} onChange={onChange} maxLength={schema.properties?.label?.maxLength} /></Field>;
+    case 'href': return <div><DestinationPicker value={(value as string) ?? ''} onChange={onChange} label={<Labelled schema={schema} label={label} />} />{helpText && <p className="text-xs text-slate-500 mt-1">{helpText}</p>}</div>;
+    case 'richtext': return <Field label={<Labelled schema={schema} label={label} />} help={helpText}><RichTextEditor value={(value as string) ?? ''} onChange={onChange} /></Field>;
+    case 'color': return <Field label={<Labelled schema={schema} label={label} />} help={helpText}><ColorField value={(value as string) ?? ''} onChange={onChange} /></Field>;
+    case 'icon': return <Field label={<Labelled schema={schema} label={label} />} help={helpText}><IconPicker value={(value as string) ?? ''} options={schema.enum ?? []} onChange={onChange} /></Field>;
+    case 'collection': return <Field label={<Labelled schema={schema} label={label} />} help={helpText ?? 'Which product shelf to show. Change its products in Categories & brands → Homepage shelves.'}><ShelfSelect value={(value as string) ?? ''} onChange={onChange} /></Field>;
+    case 'video': return <Field label={<Labelled schema={schema} label={label} />} help={helpText ?? 'Web address of the video file (ends in .mp4) or a YouTube link.'}><TextInput value={(value as string) ?? ''} onChange={onChange} placeholder="https://" /></Field>;
+    case 'enum': return <Field label={<Labelled schema={schema} label={label} />} help={helpText}><Select value={(value as string) ?? ''} onChange={onChange} options={(schema.enum ?? []).map((e) => ({ value: e, label: pretty(e) }))} /></Field>;
+    case 'boolean': return <Toggle checked={value === true} onChange={onChange} label={<Labelled schema={schema} label={label} />} description={helpText} />;
+    case 'number': return <Field label={<Labelled schema={schema} label={label} />} help={helpText}><NumberInput decimals value={(value as number) ?? null} onChange={(v) => onChange(v ?? 0)} /></Field>;
+    case 'textlist': return <Field label={<Labelled schema={schema} label={label} />} help={helpText}><StringList value={(value as string[]) ?? []} onChange={onChange} /></Field>;
     case 'list': return <ListEditor schema={schema} value={(value as unknown[]) ?? []} onChange={onChange} label={label} help={helpText} />;
     case 'object': return <ObjectEditor schema={schema} value={(value as Record<string, unknown>) ?? {}} onChange={onChange} />;
     default: {
@@ -96,7 +129,7 @@ export const FieldEditor: React.FC<{ schema: Schema; value: unknown; onChange: (
       const long = !schema.maxLength || schema.maxLength > 120;
       const counter = schema.maxLength ? `${text.length}/${schema.maxLength}` : undefined;
       return (
-        <Field label={label} optional={optional} help={[helpText, counter].filter(Boolean).join(' · ') || undefined} error={schema.maxLength && text.length > schema.maxLength ? `Too long: ${text.length}/${schema.maxLength}` : null}>
+        <Field label={<Labelled schema={schema} label={label} />} optional={optional} help={[helpText, counter].filter(Boolean).join(' · ') || undefined} error={schema.maxLength && text.length > schema.maxLength ? `Too long: ${text.length}/${schema.maxLength}` : null}>
           {long ? <TextArea rows={Math.min(6, Math.max(2, Math.ceil(text.length / 70)))} value={text} onChange={onChange} /> : <TextInput value={text} onChange={onChange} />}
         </Field>
       );
@@ -118,6 +151,15 @@ export const ObjectEditor: React.FC<{ schema: Schema; value: Record<string, unkn
     })}
   </div>
 );
+
+/** First picture in an item, shown in the collapsed list so items are easy to recognise. */
+function itemImage(v: unknown): string | null {
+  if (!v || typeof v !== 'object') return null;
+  for (const x of Object.values(v as Record<string, unknown>)) {
+    if (x && typeof x === 'object' && ('desktop' in x || 'mobile' in x)) { const i = x as Img; return mediaUrl(i.desktop ?? i.mobile); }
+  }
+  return null;
+}
 
 /** First bit of text in an item, used as its title in a collapsed list. */
 function itemTitle(v: unknown): string {
@@ -142,7 +184,7 @@ export const ListEditor: React.FC<{ schema: Schema; value: unknown[]; onChange: 
   const move = (i: number, by: number) => { const n = [...value]; const [x] = n.splice(i, 1); n.splice(i + by, 0, x); onChange(n); setOpen(i + by); };
   return (
     <div>
-      <div className="text-[13px] font-semibold mb-1">{label}</div>
+      <div className="text-[13.5px] font-medium mb-1 flex items-center gap-2"><TypeMark schema={schema} />{label}</div>
       {help && <p className="text-xs text-slate-500 mb-2">{help}</p>}
       <div className="space-y-2">
         {value.map((item, i) => (
@@ -151,6 +193,7 @@ export const ListEditor: React.FC<{ schema: Schema; value: unknown[]; onChange: 
               <button type="button" onClick={() => setOpen(open === i ? null : i)} className="flex-1 flex items-center gap-2 text-left text-sm cursor-pointer min-w-0">
                 <ChevronDown className={cx('w-4 h-4 shrink-0 transition-transform', open === i && 'rotate-180')} />
                 <span className="text-slate-400 tabular-nums">{i + 1}.</span>
+                {itemImage(item) && <img src={itemImage(item)!} alt="" className="w-10 h-7 rounded object-cover border border-[#E4E7EC] shrink-0" />}
                 <span className="truncate font-medium">{itemTitle(item) || <span className="text-slate-400 font-normal">(empty)</span>}</span>
               </button>
               <Button size="sm" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>
