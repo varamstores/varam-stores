@@ -1,6 +1,8 @@
 # Varam Foods — Build Progress
 
-**Overall: 79 % complete** `████████████████░░░░` · last updated 2026-11-23
+**Overall: 91 % complete** `██████████████████░░` · last updated 2026-11-23
+
+**Live:** https://varam-stores-alpha.vercel.app (shop) · https://varam-stores-alpha.vercel.app/admin (store portal — sign in with a staff login)
 
 Everything runs inside the Supabase Postgres database (London, eu-west-2). There's no API
 server: the website and admin portal call Postgres functions directly through Supabase.
@@ -13,12 +15,12 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 | 0 | Discovery & contract | 3 % | ✅ 100 % | `██████████` |
 | 1 | Foundations (schemas, security, runner, tests) | 5 % | ✅ 100 % | `██████████` |
 | 2 | Database schema + all mock data + all images → Supabase | 12 % | ✅ 100 % | `██████████` |
-| 3 | CMS (every page/section/image/nav/footer/SEO/microcopy, desktop + mobile) + storefront from DB | 16 % | 🟨 90 % | `█████████░` |
+| 3 | CMS (every page/section/image/nav/footer/SEO/microcopy, desktop + mobile) + storefront from DB | 16 % | ✅ 100 % | `██████████` |
 | 4 | Customer accounts (sign-up/login, addresses, wishlist, newsletter, GDPR) | 10 % | 🟨 95 % | `█████████▌` |
 | 5 | Cart & pricing engine (promotions, VAT, fees) | 10 % | 🟨 95 % | `█████████▌` |
 | 6 | Slots, checkout, Stripe payments, emails — 🏁 first full order | 12 % | 🟨 85 % | `████████▌░` |
-| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 85 % | `████████▌░` |
-| 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | 🟨 35 % | `███▌░░░░░░` |
+| 7 | End-to-end order management (picking → dispatch → delivery → refunds, loyalty) | 12 % | 🟨 95 % | `█████████▌` |
+| 8 | Admin portal fully functional (every tab, CMS editor, every setting editable) | 15 % | 🟨 95 % | `█████████▌` |
 | 9 | Hardening & launch checklist | 5 % | ⬜ 0 % | `░░░░░░░░░░` |
 
 ## What's live in the database right now
@@ -45,7 +47,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 
 ## Phase checklists
 
-### 🟨 Phase 3 — CMS + storefront from the database (85 %)
+### ✅ Phase 3 — CMS + storefront from the database (100 %)
 - [x] Content model: pages, sections, typed entries, desktop + mobile images, per-device visibility, admin-set order
 - [x] Navigation, header, mega-menus, footer, social, contact, announcement bar, mobile bottom bar, loading screen
 - [x] SEO per page (title template, description, sharing image); 11 content pages (unpublished, empty — legal text must come from you)
@@ -53,7 +55,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Homepage sections, shop, product, basket, delivery pop-up, quick view, wishlist, checkout, account → CMS
 - [x] Catalogue functions; frontend reads everything from Postgres
 - [x] "Our Story" page → CMS (sections reorderable, live counts)
-- [ ] Catalogue mock files deleted (still read by the admin portal until Phase 8)
+- [x] Mock files deleted (src/data/*, old admin portal) — all data lives only in Postgres
 
 ### 🟨 Phase 4 — Customer accounts (95 %)
 - [x] Sign-up completion with separate, timestamped Terms + marketing consents; session context (customer / staff)
@@ -74,7 +76,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Email outbox + Resend sender — **waiting for your Resend key and domain**
 - [ ] Switch to Stripe and send a real test-card order once keys arrive
 
-### 🟨 Phase 7 — Order management (85 %)
+### 🟨 Phase 7 — Order management (95 %)
 - [x] Order state machine with full history; customer cancellation releases stock, slot, coupon and card hold
 - [x] Loyalty: balance, tiers, rewards redeemed as personal codes
 - [x] Picking queue, picks with weights / shortages / substitutes (customer pays the lower price)
@@ -83,15 +85,20 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 - [x] Refund requests → manager approval → Stripe refund, credit note, points reversal, email
 - [x] Staff cancel of unpaid orders; order search for staff
 - [x] Invoices: switch on in Settings once company + VAT details are saved (Settings → Company & VAT)
-- [ ] Admin screens for all of the above (Phase 8)
+- [x] Admin screens: Orders, Picking, Deliveries, Refunds
+- [ ] Real card capture/refund with Stripe test keys (waiting for the keys)
 
-### 🟨 Phase 8 — Admin portal (35 %)
+### 🟨 Phase 8 — Admin portal (95 %)
 - [x] CMS editor functions in the database (overview, edit entry/section/page, search, media library)
 - [x] Admin catalogue functions: products, prices (now or scheduled, with history), food information, photos, categories, brands, shelves, CSV import (dry run first) / export
 - [x] Admin operations functions: dashboard, stock, stock-count CSV, suppliers, purchase orders (+ automatic low-stock drafts), customers, loyalty adjustments, customer messages, reviews, email templates, email outbox
 - [x] Admin configuration functions: every setting with a plain-English label and help, company & VAT, VAT-rate confirmation, offers & promo codes, delivery areas / postcodes / charges / weekly windows / single slots, vans, drivers, loyalty tiers & rewards, staff invitations (email via Supabase Auth), roles & permissions, audit log
-- [ ] Admin screens (new, modular, guided) replacing the mock portal; CMS editor with the simple link picker
-- [ ] Mock admin data deleted
+- [x] New store portal live at /admin: 19 screens, each with a “How this works” guide, shown only to roles allowed to use them
+- [x] Website content editor: pages → sections (on/off, computer/phone, order) → fields; buttons ask “What should it say?” + “Where should it take people?” (home, all products, category, brand, product, offers, organic, search, information page, Our Story, saved items, account, part of the homepage, video, website, email, phone); pictures for computer + phone from the picture library or upload; lists, icons, colours, rich text with toolbar and preview; find any text; Google/sharing preview
+- [x] Staff invitations by email; invited staff choose a password on /admin
+- [x] Every screen checked signed in as the Store Manager against the real database (all 126 database calls verified)
+- [x] Mock admin data deleted
+- [ ] Click-through of every save with you (we fix anything that feels unclear)
 
 ### ⬜ Phase 9 — Hardening
 
@@ -101,19 +108,19 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 | Buy it again + "often bought together" | ✅ | ✅ buy it again (account) · ⬜ "bought together" row |
 | Back-in-stock & price-drop alerts | ✅ (+ email job) | ✅ product page buttons, account tab |
 | Repeat orders (basket refilled + reminder, nothing charged automatically) | ✅ (+ daily job) | ✅ account tab, "Repeat this order" |
-| Abandoned-basket reminders (only with marketing consent) | ✅ (+ hourly job) | ✅ settings in admin later |
-| Low-stock automatic purchase orders | ✅ (+ daily 06:30 job, on/off in Settings) | ⬜ admin screen |
-| Product CSV import / export | ✅ (dry run lists every problem; all-or-nothing) | ⬜ admin screen |
+| Abandoned-basket reminders (only with marketing consent) | ✅ (+ hourly job) | ✅ on/off and timing in Settings |
+| Low-stock automatic purchase orders | ✅ (+ daily 06:30 job, on/off in Settings) | ✅ Suppliers & buying |
+| Product CSV import / export | ✅ (dry run lists every problem; all-or-nothing) | ✅ Products (+ stock-count CSV in Stock) |
 
 ## Mock removal tracker (goal: zero)
 | Frontend source | Data in DB | Frontend reads DB | File deleted |
 |---|---|---|---|
-| `src/data/products.ts` | ✅ | ✅ storefront · ⬜ admin | ⬜ |
-| `src/data/categories.ts` | ✅ | ✅ storefront · ⬜ admin | ⬜ |
-| `src/data/brands.ts` | ✅ | ✅ | ⬜ |
-| `src/data/reviews.ts` | ✅ | ✅ | ⬜ |
-| `src/data/adminMockData.ts` | ✅ | ⬜ | ⬜ |
-| Hard-coded copy and images in components | ✅ | ✅ (except Our Story, admin) | — |
+| `src/data/products.ts` | ✅ | ✅ | ✅ |
+| `src/data/categories.ts` | ✅ | ✅ | ✅ |
+| `src/data/brands.ts` | ✅ | ✅ | ✅ |
+| `src/data/reviews.ts` | ✅ | ✅ | ✅ |
+| `src/data/adminMockData.ts` | ✅ | ✅ | ✅ |
+| Hard-coded copy and images in components | ✅ | ✅ | — |
 
 ## Waiting on you
 1. **Stripe test keys** (`sk_test_…`, `pk_test_…`) — checkout runs in test mode until then
@@ -125,6 +132,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 7. Rotate the DB password and Supabase access token (they were pasted in chat); later change the test@gmail.com login
 
 ## Log
+- **2026-11-23 (later)**: Site live on Vercel (blank page fixed: public Supabase settings now ship with the build; clean URLs fixed). New store portal live at /admin with every screen wired to Postgres; mock portal and mock data deleted.
 - **2026-11-23**: All admin functions in the database: catalogue + CSV, stock + suppliers + purchase orders (automatic low-stock drafts), customers, reviews, emails, offers & codes, delivery set-up, loyalty, staff invitations & roles, settings with plain-English help, company & VAT, audit log. 28 migrations, 399 tests green, lint clean.
 - **2026-11-22 (later)**: Order management end to end (picking → capture → dispatch → delivery → refunds) + Our Story from the CMS. 24 migrations, 304 tests green.
 - **2026-11-22**: Storefront fully on Postgres + CMS (798 entries). Basket & pricing engine, accounts, delivery slots, checkout and orders, loyalty, reviews, alerts, repeat orders, basket reminders. 22 migrations, 275 tests green.
