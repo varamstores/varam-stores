@@ -22,3 +22,28 @@ if (current.db_schema !== WANT_SCHEMAS) {
 } else {
   console.log(`PostgREST exposed schemas already "${WANT_SCHEMAS}"`);
 }
+
+//  - Auth: links in sign-up, password-reset and staff-invitation emails point at the shop's website
+//    address (Settings → Store details → Website address, setting `site_url`). Run this again after
+//    changing that setting (e.g. at go-live). Existing allowed redirect URLs are kept.
+const { connect } = await import('./lib/db.mjs');
+const db = await connect();
+let siteUrl;
+try {
+  siteUrl = (await db.query(`select value #>> '{}' as v from app.app_settings where key = 'site_url'`)).rows[0]?.v;
+} finally {
+  await db.end();
+}
+if (!siteUrl || !/^https?:\/\/[^\s]+$/.test(siteUrl)) throw new Error('Setting site_url is missing or not a web address.');
+siteUrl = siteUrl.replace(/\/+$/, '');
+const auth = await call('GET', `${base}/config/auth`);
+const allow = new Set((auth.uri_allow_list ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+allow.add(`${siteUrl}/**`);
+allow.add('http://localhost:5173/**');
+const wantList = [...allow].join(',');
+if (auth.site_url !== siteUrl || auth.uri_allow_list !== wantList) {
+  await call('PATCH', `${base}/config/auth`, { site_url: siteUrl, uri_allow_list: wantList });
+  console.log(`Auth site URL → ${siteUrl}; allowed redirects → ${wantList}`);
+} else {
+  console.log(`Auth site URL already ${siteUrl}`);
+}
