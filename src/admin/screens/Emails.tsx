@@ -32,7 +32,7 @@ export default function EmailsScreen({ param }: ScreenProps) {
         <li>Some links are required by law (for example unsubscribe) and cannot be removed.</li>
         <li>Press <b>Save wording</b>. The next email of that kind uses the new words.</li>
       </ol>}
-      actions={<Button variant="ghost" onClick={() => setLogOpen(true)}>See what was sent</Button>}
+      actions={<Button onClick={() => setLogOpen(true)}>See what was sent</Button>}
     >
       {checklist.data && !connected && (
         <Notice tone="info"><b>Emails are not connected yet.</b> They are sent through Resend from your own address (for example orders@varamfoods.co.uk). Until your developer adds the Resend key, emails wait in a queue and go out once it is connected. Sign-in emails (password reset, staff invitations) use the same address.</Notice>
@@ -47,24 +47,34 @@ export default function EmailsScreen({ param }: ScreenProps) {
 
 // Which part of the shop each email belongs to, so the list reads in plain groups.
 function groupOf(t: Template): string {
-  if (t.isMarketing) return 'Marketing (only to people who agreed)';
+  if (t.isMarketing) return 'Marketing';
   if (/^(order|refund|repeat)/.test(t.code)) return 'Orders';
   if (/^(purchase|supplier)/.test(t.code)) return 'Suppliers';
-  return 'Account & other';
+  return 'Account';
 }
+const GROUPS = [
+  { key: 'Orders', text: 'Sent as an order moves along: confirmed, packed, on the way, delivered, cancelled, refunded.' },
+  { key: 'Account', text: 'Sign-up, newsletter, alerts and messages you send to a customer.' },
+  { key: 'Marketing', text: 'Only sent to customers who agreed to marketing emails.' },
+  { key: 'Suppliers', text: 'Purchase orders emailed to your suppliers.' },
+];
 
 const Templates: React.FC = () => {
   const { data, isLoading, error, refetch } = useAdminQuery<Template[]>('admin_list_message_templates');
   const [open, setOpen] = useState<Template | null>(null);
+  const [group, setGroup] = useState<string>('Orders');
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
-  const groups = [...new Set((data ?? []).map(groupOf))].sort((a, b) => ['Orders', 'Account & other', 'Marketing (only to people who agreed)', 'Suppliers'].indexOf(a) - ['Orders', 'Account & other', 'Marketing (only to people who agreed)', 'Suppliers'].indexOf(b));
+  const all = data ?? [];
+  const groups = GROUPS.filter((g) => all.some((t) => groupOf(t) === g.key));
+  const current = groups.find((g) => g.key === group) ?? groups[0];
   return (
     <div className="space-y-4">
-      {groups.map((g) => (
-        <Card key={g} title={g} padded={false}>
+      <Chips value={current?.key ?? ''} onChange={setGroup} options={groups.map((g) => ({ value: g.key, label: g.key, count: all.filter((t) => groupOf(t) === g.key).length }))} />
+      {current && (
+        <Card key={current.key} title={`${current.key} emails`} description={current.text} padded={false}>
           <ul>
-            {(data ?? []).filter((t) => groupOf(t) === g).map((t) => (
+            {all.filter((t) => groupOf(t) === current.key).map((t) => (
               <li key={`${t.code}-${t.channel}`} className="border-b border-[#E8EBEF] last:border-0">
                 <button type="button" onClick={() => setOpen(t)} className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[#FFFCEB] cursor-pointer group">
                   <Mail className="w-4 h-4 text-[#7A8594] shrink-0" />
@@ -79,7 +89,7 @@ const Templates: React.FC = () => {
             ))}
           </ul>
         </Card>
-      ))}
+      )}
       {open && <TemplateEditor t={open} onClose={() => setOpen(null)} />}
     </div>
   );
