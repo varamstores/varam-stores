@@ -5,7 +5,7 @@ import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { rpc } from '../../lib/api';
 import { usePagedList, money, errorText, downloadText, londonToday, type Paged } from '../lib';
-import { Badge, Button, Card, Empty, ErrorState, Field, Loading, Pager, SampleTag, Screen, SearchInput, Segmented, Select, Table, Tabs, Td, Th, Thumb, Tr } from '../ui';
+import { Badge, Button, Card, Empty, ErrorState, FilterBar, Loading, Pager, SampleTag, Screen, Table, Tabs, Td, Th, Thumb, Tr } from '../ui';
 import { CsvImport } from '../CsvImport';
 import { ProductEditor } from '../ProductEditor';
 import { useLookups } from '../lookups';
@@ -78,37 +78,30 @@ const ProductList: React.FC<{ initialIssue: string; onOpen: (id: string) => void
   const [status, setStatus] = useState('active');
   const [issue, setIssue] = useState(initialIssue);
   const [category, setCategory] = useState('');
+  const [brand, setBrand] = useState('');
+  const [sort, setSort] = useState('name');
   const list = usePagedList<ProductRow, ProductList>('admin_list_products', {
     p_q: q || undefined, p_status: status === 'all' ? undefined : status, p_issue: issue || undefined, p_category: category || undefined,
+    p_brand: brand || undefined, p_sort: sort === 'name' ? undefined : sort,
   });
   const c = list.first?.counts;
-  const filtered = !!(q || issue || category || status !== 'active');
+  const filtered = !!(q || issue || category || brand || status !== 'active');
   return (
     <Card padded={false}>
-      <div className="p-4 space-y-4 border-b border-[#E2E6EB]">
-        <SearchInput value={q} onChange={setQ} placeholder="Search products by name or SKU…" />
-        <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
-          <Field label="Show">
-            <Segmented value={status} onChange={setStatus} options={[
-              { value: 'active', label: `On sale${c ? ` (${c.active})` : ''}` }, { value: 'draft', label: `Drafts${c ? ` (${c.draft})` : ''}` },
-              { value: 'archived', label: `Archived${c ? ` (${c.archived})` : ''}` }, { value: 'all', label: 'All' },
-            ]} />
-          </Field>
-          <Field label="Category">
-            <Select value={category} onChange={setCategory} placeholder="All categories" options={(lookups.data?.categories ?? []).map((x) => ({ value: x.slug, label: x.path }))} />
-          </Field>
-          <Field label="Needs fixing">
-            <Select value={issue} onChange={setIssue} placeholder="No filter — show all" options={[
-              { value: 'food_info', label: `Food information missing${c ? ` (${c.foodInfoMissing})` : ''}` },
-              { value: 'no_price', label: `No price${c ? ` (${c.noPrice})` : ''}` },
-              { value: 'no_image', label: 'No photo' },
-              { value: 'low_stock', label: `Running low${c ? ` (${c.lowStock})` : ''}` },
-              { value: 'out_of_stock', label: 'Out of stock' },
-            ]} />
-          </Field>
-        </div>
-        {filtered && <button type="button" className="text-[13px] font-medium text-[#3F4652] underline underline-offset-2 cursor-pointer" onClick={() => { setQ(''); setIssue(''); setCategory(''); setStatus('active'); }}>Clear all filters</button>}
-      </div>
+      <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search products by name or SKU…' }} count={list.isLoading ? null : list.total} noun={['product', 'products']}
+        filters={[
+          { key: 'status', label: 'Show', value: status, onChange: setStatus, defaultValue: 'active', options: [
+            { value: 'active', label: `On sale${c ? ` (${c.active})` : ''}` }, { value: 'draft', label: `Drafts${c ? ` (${c.draft})` : ''}` },
+            { value: 'archived', label: `Archived${c ? ` (${c.archived})` : ''}` }, { value: 'all', label: 'All products' }] },
+          { key: 'category', label: 'Category', value: category, onChange: setCategory, allLabel: 'All categories', options: (lookups.data?.categories ?? []).map((x) => ({ value: x.slug, label: x.path })) },
+          { key: 'brand', label: 'Brand', value: brand, onChange: setBrand, allLabel: 'All brands', options: (lookups.data?.brands ?? []).map((b) => ({ value: b.slug, label: b.name })) },
+          { key: 'issue', label: 'Needs fixing', value: issue, onChange: setIssue, allLabel: 'No filter', options: [
+            { value: 'food_info', label: `Food information missing${c ? ` (${c.foodInfoMissing})` : ''}` }, { value: 'no_price', label: `No price${c ? ` (${c.noPrice})` : ''}` },
+            { value: 'no_image', label: 'No photo' }, { value: 'low_stock', label: `Running low${c ? ` (${c.lowStock})` : ''}` }, { value: 'out_of_stock', label: 'Out of stock' }] },
+          { key: 'sort', label: 'Sort by', value: sort, onChange: setSort, defaultValue: 'name', options: [
+            { value: 'name', label: 'Name (A to Z)' }, { value: 'price-asc', label: 'Price, lowest first' }, { value: 'price-desc', label: 'Price, highest first' },
+            { value: 'stock-asc', label: 'Stock, lowest first' }, { value: 'newest', label: 'Newest first' }, { value: 'updated', label: 'Recently changed' }] },
+        ]} />
       {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} text={errorText(list.error)} onRetry={() => void list.refetch()} /> : !list.items.length ? (
         <Empty icon={<Package className="w-5 h-5" />} title="No products match" text={filtered ? 'Try clearing the search or filters.' : 'Press Add product to add your first one.'} />
       ) : (

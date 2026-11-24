@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, money, pence, date, errorText, downloadText } from '../lib';
-import { Badge, Button, Card, Checkbox, Chips, Drawer, Empty, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, Screen, Select, Table, Td, TextArea, TextInput, Th, Toggle, Tr, cx, usePager } from '../ui';
+import { Badge, Button, Card, Checkbox, Chips, Drawer, Empty, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, Screen, Select, Table, Td, TextArea, TextInput, Th, Toggle, Tr, cx, usePager, FilterBar } from '../ui';
 import { ProductPicker } from '../pickers';
 import { useLookups } from '../lookups';
 
@@ -43,11 +43,16 @@ export function describeOffer(o: Pick<Offer, 'type' | 'scope' | 'percent' | 'amo
   }
 }
 
-export default function OffersScreen(_: ScreenProps) {
+export default function OffersScreen({ param }: ScreenProps) {
   const [status, setStatus] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Offer[]>('admin_list_promotions', { p_status: status || undefined });
-  const { pageItems, pager } = usePager(data, 25);
-  const [open, setOpen] = useState<string | 'new' | null>(null);
+  const [q, setQ] = useState('');
+  const [kind, setKind] = useState('');
+  const [code, setCode] = useState('');
+  const rows = (data ?? []).filter((o) => (!q.trim() || `${o.label} ${o.name} ${o.coupons.map((c) => c.code).join(' ')}`.toLowerCase().includes(q.trim().toLowerCase()))
+    && (!kind || o.type === kind) && (!code || (code === 'code' ? o.requiresCoupon : code === 'auto' ? !o.requiresCoupon : o.isLoyaltyReward)));
+  const { pageItems, pager } = usePager(rows, 25);
+  const [open, setOpen] = useState<string | 'new' | null>(param ?? null);
   return (
     <Screen
       title="Offers & codes"
@@ -60,10 +65,16 @@ export default function OffersScreen(_: ScreenProps) {
       </ol>}
       actions={<Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpen('new')}>New offer</Button>}
     >
-      <Chips value={status} onChange={setStatus} options={[{ value: '', label: 'All' }, { value: 'active', label: 'Live' }, { value: 'draft', label: 'Drafts' }, { value: 'paused', label: 'Paused' }, { value: 'ended', label: 'Ended' }]} />
       <Card padded={false}>
-        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !data?.length ? (
-          <Empty icon={<Percent className="w-5 h-5" />} title="No offers yet" action={<Button variant="primary" onClick={() => setOpen('new')}>Create your first offer</Button>} />
+        <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search offers by name or promo code…' }} count={isLoading ? null : rows.length} noun={['offer', 'offers']}
+          filters={[
+            { key: 'status', label: 'Status', value: status, onChange: setStatus, allLabel: 'All', options: [{ value: 'active', label: 'Live' }, { value: 'draft', label: 'Drafts' }, { value: 'paused', label: 'Paused' }, { value: 'ended', label: 'Ended' }] },
+            { key: 'kind', label: 'Kind of offer', value: kind, onChange: setKind, allLabel: 'All kinds', options: TYPES.map((t) => ({ value: t.value, label: t.title })) },
+            { key: 'code', label: 'How it applies', value: code, onChange: setCode, allLabel: 'Any', options: [{ value: 'code', label: 'Needs a promo code' }, { value: 'auto', label: 'Automatic' }, { value: 'reward', label: 'Loyalty rewards' }] },
+          ]} />
+        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !rows.length ? (
+          data?.length ? <Empty icon={<Percent className="w-5 h-5" />} title="No offers match" text="Try clearing the search or filters." />
+            : <Empty icon={<Percent className="w-5 h-5" />} title="No offers yet" action={<Button variant="primary" onClick={() => setOpen('new')}>Create your first offer</Button>} />
         ) : (
           <Table>
             <thead><tr><Th>Offer</Th><Th>Codes</Th><Th>Status</Th><Th className="text-right">Used</Th><Th className="text-right">Discount given</Th><Th>Runs</Th></tr></thead>

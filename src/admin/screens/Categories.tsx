@@ -2,7 +2,7 @@ import type { ScreenProps } from '../AdminApp';
 import { Button, Screen } from '../ui';
 import { Categories } from './Catalogue';
 
-export default function CategoriesScreen({ go }: ScreenProps) {
+export default function CategoriesScreen({ param, go }: ScreenProps) {
   return (
     <Screen
       title="Categories"
@@ -15,7 +15,7 @@ export default function CategoriesScreen({ go }: ScreenProps) {
       </ol>}
       actions={<Button onClick={() => go('brands')}>Next: Brands ›</Button>}
     >
-      <Categories />
+      <Categories key={param ?? ''} initialQ={param ?? ''} />
     </Screen>
   );
 }

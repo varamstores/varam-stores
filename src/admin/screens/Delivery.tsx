@@ -3,7 +3,7 @@ import { Copy, MapPin, Plus, Trash2 } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, pence } from '../lib';
-import { Badge, Button, Card, Checkbox, Drawer, Empty, ErrorState, Field, Loading, Modal, MoneyInput, Notice, NumberInput, SampleTag, Screen, Select, Table, Tabs, Td, TextArea, TextInput, Th, Toggle, Tr } from '../ui';
+import { Badge, Button, Card, Checkbox, Drawer, Empty, ErrorState, Field, Loading, Modal, MoneyInput, Notice, NumberInput, SampleTag, Screen, Select, Table, Tabs, Td, TextArea, TextInput, Th, Toggle, Tr, FilterBar } from '../ui';
 
 interface Window { id?: string; weekday: number; start: string; end: string; capacity: number | null; cutoffMinutes: number | null; label: string | null; feeMinor: number | null; isActive: boolean }
 interface Zone {
@@ -45,15 +45,24 @@ const Areas: React.FC = () => {
   const [open, setOpen] = useState<string | 'new' | null>(null);
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('fleet_management');
+  const [q, setQ] = useState('');
+  const [on, setOn] = useState('');
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
   const zone = open && open !== 'new' ? data?.find((z) => z.id === open) ?? null : null;
+  const s = q.trim().toUpperCase();
+  const zones = (data ?? []).filter((z) => (!s || `${z.name} ${z.label} ${z.postcodes.join(' ')}`.toUpperCase().includes(s) || z.postcodes.some((p) => s.startsWith(p)))
+    && (!on || (on === 'yes' ? z.isActive : !z.isActive)));
   return (
     <>
       {canEdit && <div className="flex justify-end"><Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setOpen('new')}>Add area</Button></div>}
-      {!data?.length ? <Card><Empty icon={<MapPin className="w-5 h-5" />} title="No delivery areas yet" /></Card> : (
+      <Card padded={false}>
+        <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search areas by name or postcode (e.g. AL10 or AL10 9AB)…' }} count={zones.length} noun={['area', 'areas']}
+          filters={[{ key: 'on', label: 'Delivering', value: on, onChange: setOn, allLabel: 'All areas', options: [{ value: 'yes', label: 'Delivering now' }, { value: 'no', label: 'Switched off' }] }]} />
+      </Card>
+      {!zones.length ? <Card><Empty icon={<MapPin className="w-5 h-5" />} title={data?.length ? 'No areas match' : 'No delivery areas yet'} /></Card> : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {data.map((z) => (
+          {zones.map((z) => (
             <button key={z.id} type="button" onClick={() => setOpen(z.id)} className="text-left bg-white rounded-lg border border-[#E2E8F0] p-4 hover:border-[#18181B] cursor-pointer space-y-2">
               <div className="flex items-center justify-between gap-2"><span className="font-bold">{z.name}</span><span className="flex gap-1">{!z.isActive && <Badge tone="red">Off</Badge>}{z.isPopular && <Badge tone="yellow">Popular</Badge>}</span></div>
               <div className="text-xs text-slate-500">Shoppers see “{z.label}”</div>

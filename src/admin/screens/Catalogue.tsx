@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, mediaUrl } from '../lib';
-import { Badge, Button, Card, Checkbox, ConfirmButton, Empty, ErrorState, Field, Loading, Modal, SearchInput, Select, Table, Td, TextInput, Th, Thumb, Tr, usePager } from '../ui';
+import { Badge, Button, Card, Checkbox, ConfirmButton, Empty, ErrorState, Field, Loading, Modal, Select, Table, Td, TextInput, Th, Thumb, Tr, usePager, FilterBar } from '../ui';
 import { ImageField, ProductPicker } from '../pickers';
 
 interface Category {
@@ -15,12 +15,18 @@ interface Shelf { code: string; title: string; isActive: boolean; products: Arra
 // The pieces used by the Categories, Brands and Products screens.
 
 // ── categories ──────────────────────────────────────────────────────────────────────────────────
-export const Categories: React.FC = () => {
+export const Categories: React.FC<{ initialQ?: string }> = ({ initialQ = '' }) => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('inventory');
   const { data, isLoading, error, refetch } = useAdminQuery<Category[]>('admin_list_categories');
   const { run } = useAction();
   const [editing, setEditing] = useState<Partial<Category> | null>(null);
+  const [q, setQ] = useState(initialQ);
+  const [shown, setShown] = useState('');
+  const [home, setHome] = useState('');
+  const [level, setLevel] = useState('');
+  const [stock, setStock] = useState('');
+  const filtering = !!(q.trim() || shown || home || level || stock);
   const byParent = useMemo(() => {
     const m = new Map<string | null, Category[]>();
     for (const c of data ?? []) m.set(c.parentId, [...(m.get(c.parentId) ?? []), c]);
@@ -38,13 +44,31 @@ export const Categories: React.FC = () => {
   const rows: Array<{ c: Category; depth: number; index: number; count: number }> = [];
   const walk = (parent: string | null, depth: number) => (byParent.get(parent) ?? []).forEach((c, index, arr) => { rows.push({ c, depth, index, count: arr.length }); walk(c.id, depth + 1); });
   walk(null, 0);
-  const { pageItems, pager } = usePager(rows, 30);
+  // with a search or filter, show the matching categories as a flat list (the tree order is kept)
+  const byId = new Map((data ?? []).map((c) => [c.id, c]));
+  const pathOf = (c: Category): string => (c.parentId && byId.get(c.parentId) ? `${pathOf(byId.get(c.parentId)!)} › ${c.name}` : c.name);
+  const s = q.trim().toLowerCase();
+  const shownRows = filtering ? rows.filter(({ c }) =>
+    (!s || `${pathOf(c)} ${c.tagline ?? ''} ${c.slug}`.toLowerCase().includes(s))
+    && (!shown || (shown === 'shown' ? c.isActive : !c.isActive))
+    && (!home || (home === 'yes' ? c.showOnHomepage : !c.showOnHomepage))
+    && (!level || (level === 'top' ? !c.parentId : !!c.parentId))
+    && (!stock || (stock === 'with' ? c.productCount > 0 : c.productCount === 0))).map((r) => ({ ...r, depth: 0 })) : rows;
+  const { pageItems, pager } = usePager(shownRows, 30);
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
   return (
     <Card padded={false} title={`${data?.length ?? 0} categories`} actions={canEdit && <Button size="sm" variant="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditing({ isActive: true, parentId: null })}>Add category</Button>}>
-      <Table>
+      <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search categories by name…' }} count={shownRows.length} noun={['category', 'categories']}
+        filters={[
+          { key: 'shown', label: 'In the shop', value: shown, onChange: setShown, options: [{ value: 'shown', label: 'Shown' }, { value: 'hidden', label: 'Hidden' }] },
+          { key: 'home', label: 'On the homepage', value: home, onChange: setHome, options: [{ value: 'yes', label: 'On the homepage' }, { value: 'no', label: 'Not on the homepage' }] },
+          { key: 'level', label: 'Level', value: level, onChange: setLevel, options: [{ value: 'top', label: 'Main categories' }, { value: 'sub', label: 'Categories inside others' }] },
+          { key: 'stock', label: 'Products', value: stock, onChange: setStock, options: [{ value: 'with', label: 'Has products' }, { value: 'empty', label: 'No products yet' }] },
+        ]} />
+      {filtering && <p className="px-4 pt-3 text-[12.5px] text-[#5F6B7A]">Clear the filters to change the order with the arrows.</p>}
+      {!shownRows.length ? <Empty title="No categories match" text="Try clearing the search or filters." /> : <Table>
         <thead><tr><Th>Category</Th><Th className="text-right">Products</Th><Th>Shown</Th><Th /></tr></thead>
         <tbody>
           {pageItems.map(({ c, depth, index, count }) => (
@@ -53,22 +77,22 @@ export const Categories: React.FC = () => {
                 <div className="flex items-center gap-3" style={{ paddingLeft: depth * 24 }}>
                   {depth > 0 && <span className="text-slate-300">└</span>}
                   <Thumb src={c.image?.url} size={36} />
-                  <div><div className="font-medium">{c.name}</div>{c.tagline && <div className="text-xs text-slate-500">{c.tagline}</div>}</div>
+                  <div><div className="font-medium">{filtering ? pathOf(c) : c.name}</div>{c.tagline && <div className="text-xs text-slate-500">{c.tagline}</div>}</div>
                 </div>
               </Td>
               <Td className="text-right tabular-nums">{c.productCount}</Td>
               <Td className="space-x-1">{c.isActive ? <Badge tone="green">In the shop</Badge> : <Badge>Hidden</Badge>}{c.showOnHomepage && <Badge tone="yellow">Homepage</Badge>}</Td>
               <Td className="text-right whitespace-nowrap">
                 {canEdit && <>
-                  <Button size="sm" variant="ghost" aria-label="Move up" disabled={index === 0} onClick={() => move(c, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>
-                  <Button size="sm" variant="ghost" aria-label="Move down" disabled={index === count - 1} onClick={() => move(c, 1)}><ArrowDown className="w-3.5 h-3.5" /></Button>
+                  {!filtering && <Button size="sm" variant="ghost" aria-label="Move up" disabled={index === 0} onClick={() => move(c, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>}
+                  {!filtering && <Button size="sm" variant="ghost" aria-label="Move down" disabled={index === count - 1} onClick={() => move(c, 1)}><ArrowDown className="w-3.5 h-3.5" /></Button>}
                   <Button size="sm" onClick={() => setEditing(c)}>Edit</Button>
                 </>}
               </Td>
             </Tr>
           ))}
         </tbody>
-      </Table>
+      </Table>}
       {pager}
       {editing && <CategoryForm initial={editing} all={data ?? []} onClose={() => setEditing(null)} />}
     </Card>
@@ -122,21 +146,35 @@ const CategoryForm: React.FC<{ initial: Partial<Category>; all: Category[]; onCl
 };
 
 // ── brands ──────────────────────────────────────────────────────────────────────────────────────
-export const Brands: React.FC = () => {
+export const Brands: React.FC<{ initialQ?: string }> = ({ initialQ = '' }) => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('inventory');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(initialQ);
+  const [shown, setShown] = useState('');
+  const [popular, setPopular] = useState('');
+  const [strip, setStrip] = useState('');
+  const [logo, setLogo] = useState('');
+  const [used, setUsed] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Brand[]>('admin_list_brands', { p_q: q || undefined });
   const [editing, setEditing] = useState<Partial<Brand> | null>(null);
-  const { pageItems, pager } = usePager(data, 25);
+  const list = (data ?? []).filter((b) => (!shown || (shown === 'shown' ? b.isActive : !b.isActive))
+    && (!popular || (popular === 'yes' ? b.isPopular : !b.isPopular))
+    && (!strip || (strip === 'yes' ? b.marqueePosition != null : b.marqueePosition == null))
+    && (!logo || (logo === 'yes' ? !!b.logoPath : !b.logoPath))
+    && (!used || (used === 'with' ? b.productCount > 0 : b.productCount === 0)));
+  const { pageItems, pager } = usePager(list, 25);
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
   return (
-    <Card padded={false}>
-      <div className="p-4 flex flex-col sm:flex-row gap-2 border-b border-slate-100">
-        <SearchInput value={q} onChange={setQ} placeholder="Search brands…" className="flex-1" />
-        {canEdit && <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setEditing({ isActive: true })}>Add brand</Button>}
-      </div>
-      {isLoading ? <Loading /> : !data?.length ? <Empty title="No brands found" /> : (<>
+    <Card padded={false} title={`${data?.length ?? 0} brands`} actions={canEdit && <Button size="sm" variant="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditing({ isActive: true })}>Add brand</Button>}>
+      <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search brands by name…' }} count={isLoading ? null : list.length} noun={['brand', 'brands']}
+        filters={[
+          { key: 'shown', label: 'In the shop', value: shown, onChange: setShown, options: [{ value: 'shown', label: 'Visible' }, { value: 'hidden', label: 'Hidden' }] },
+          { key: 'popular', label: 'In the brand filter', value: popular, onChange: setPopular, options: [{ value: 'yes', label: 'Shown in the filter' }, { value: 'no', label: 'Not in the filter' }] },
+          { key: 'strip', label: 'Homepage logo strip', value: strip, onChange: setStrip, options: [{ value: 'yes', label: 'In the strip' }, { value: 'no', label: 'Not in the strip' }] },
+          { key: 'logo', label: 'Logo', value: logo, onChange: setLogo, options: [{ value: 'yes', label: 'Has a logo' }, { value: 'no', label: 'No logo yet' }] },
+          { key: 'used', label: 'Products', value: used, onChange: setUsed, options: [{ value: 'with', label: 'Has products' }, { value: 'none', label: 'No products' }] },
+        ]} />
+      {isLoading ? <Loading /> : !list.length ? <Empty title="No brands match" text="Try clearing the search or filters." /> : (<>
         <Table>
           <thead><tr><Th>Brand</Th><Th className="text-right">Products</Th><Th>Shown</Th><Th /></tr></thead>
           <tbody>

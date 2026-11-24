@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, Star, X } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAction, useAdminQuery, dateTime, errorText } from '../lib';
-import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, SampleTag, Screen, usePager } from '../ui';
+import { Badge, Button, Card, Empty, ErrorState, Loading, SampleTag, Screen, usePager, FilterBar } from '../ui';
 
 interface Review {
   id: string; status: string; rating: number; body: string; displayName: string; isVerified: boolean; isSample: boolean; createdAt: string;
@@ -11,8 +11,13 @@ interface Review {
 
 export default function ReviewsScreen(_: ScreenProps) {
   const [status, setStatus] = useState('pending');
+  const [q, setQ] = useState('');
+  const [stars, setStars] = useState('');
+  const [verified, setVerified] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Review[]>('admin_list_reviews', { p_status: status });
-  const { pageItems, pager } = usePager(data, 20);
+  const rows = (data ?? []).filter((r) => (!q.trim() || `${r.displayName} ${r.body} ${r.product?.name ?? ''}`.toLowerCase().includes(q.trim().toLowerCase()))
+    && (!stars || (stars === 'low' ? r.rating <= 2 : r.rating === Number(stars))) && (!verified || (verified === 'yes' ? r.isVerified : !r.isVerified)));
+  const { pageItems, pager } = usePager(rows, 20);
   const { run, busy } = useAction();
   const decide = (id: string, s: 'approved' | 'rejected') => run('admin_moderate_review', { p_id: id, p_status: s }, { success: s === 'approved' ? 'Review published' : 'Review rejected', refresh: ['admin_list_reviews', 'admin_dashboard'] });
   return (
@@ -25,8 +30,15 @@ export default function ReviewsScreen(_: ScreenProps) {
         <li><b>Verified</b> means the person bought the product from you.</li>
       </ul>}
     >
-      <Chips value={status} onChange={setStatus} options={[{ value: 'pending', label: 'Waiting' }, { value: 'approved', label: 'Published' }, { value: 'rejected', label: 'Rejected' }]} />
-      {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !data?.length ? (
+      <Card padded={false}>
+        <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search reviews by words, name or product…' }} count={isLoading ? null : rows.length} noun={['review', 'reviews']}
+          filters={[
+            { key: 'status', label: 'Show', value: status, onChange: setStatus, defaultValue: 'pending', options: [{ value: 'pending', label: 'Waiting for a decision' }, { value: 'approved', label: 'Published' }, { value: 'rejected', label: 'Rejected' }] },
+            { key: 'stars', label: 'Stars', value: stars, onChange: setStars, allLabel: 'Any', options: [{ value: '5', label: '5 stars' }, { value: '4', label: '4 stars' }, { value: '3', label: '3 stars' }, { value: 'low', label: '1–2 stars' }] },
+            { key: 'verified', label: 'Buyer', value: verified, onChange: setVerified, allLabel: 'Anyone', options: [{ value: 'yes', label: 'Verified buyers' }, { value: 'no', label: 'Not verified' }] },
+          ]} />
+      </Card>
+      {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !rows.length ? (
         <Card><Empty icon={<Star className="w-5 h-5" />} title={status === 'pending' ? 'No reviews waiting' : 'No reviews here'} /></Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-3">
@@ -50,7 +62,7 @@ export default function ReviewsScreen(_: ScreenProps) {
           ))}
         </div>
       )}
-      {!!data?.length && <Card padded={false}>{pager}</Card>}
+      {!!rows.length && <Card padded={false}>{pager}</Card>}
     </Screen>
   );
 }

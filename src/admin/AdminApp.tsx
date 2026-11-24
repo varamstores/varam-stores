@@ -9,6 +9,7 @@ import { authLinkType, supabase } from '../lib/supabase';
 import { rpc } from '../lib/api';
 import { AREA, AreaContext, Button, Field, Loading, Notice, Select, TextInput, Toaster, cx, type AreaName } from './ui';
 import { toast } from './toast';
+import { GlobalSearch } from './GlobalSearch';
 import { errorText } from './lib';
 
 // The store portal at /admin. Each screen is a separate file in ./screens and is only downloaded
@@ -259,7 +260,8 @@ export default function AdminApp() {
               <span className="font-medium truncate">{current.label}</span>
             </div>
           )}
-          <a href="/" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-[#D9DDE3] text-[13px] font-medium text-[#3F4652] hover:bg-[#F6F7F9]">Open the shop <ExternalLink className="w-3.5 h-3.5" /></a>
+          <div className="flex-1 flex justify-center px-2 min-w-0"><GlobalSearch screens={allowed.map((n) => ({ key: n.key, label: n.label }))} go={go} /></div>
+          <a href="/" target="_blank" rel="noreferrer" className="hidden md:inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-[#D9DDE3] text-[13px] font-medium text-[#3F4652] hover:bg-[#F6F7F9] shrink-0">Open the shop <ExternalLink className="w-3.5 h-3.5" /></a>
         </header>
         <main className="min-w-0 overflow-x-clip">
           {current ? (

@@ -416,6 +416,14 @@ export interface CmsEntries {
   'shop.filters.price_up_to': string;
   'shop.filters.price_any': string;
   'shop.filters.price_aria': string;
+  'shop.filters.availability_title': string;
+  'shop.filters.in_stock': string;
+  'shop.filters.price_from_label': string;
+  'shop.filters.price_to_label': string;
+  'shop.filters.brand_search': string;
+  'shop.filters.brands_show_all': string;
+  'shop.filters.brands_show_fewer': string;
+  'shop.filters.brands_none': string;
   'shop.filters.rating_title': string;
   'shop.filters.rating_options': Array<{ label: string; value: number }>;
   'shop.filters.mobile_button': string;
@@ -439,6 +447,8 @@ export interface CmsEntries {
   'shop.chips.organic': string;
   'shop.chips.on_sale': string;
   'shop.chips.price': string;
+  'shop.chips.price_from': string;
+  'shop.chips.in_stock': string;
   'shop.chips.rating': string;
   'shop.chips.remove_aria': string;
   'shop.chips.clear_all': string;
@@ -1251,6 +1261,14 @@ export const CMS_KINDS: Record<keyof CmsEntries, CmsKind> = {
   'shop.filters.price_up_to': 'text',
   'shop.filters.price_any': 'text',
   'shop.filters.price_aria': 'text',
+  'shop.filters.availability_title': 'text',
+  'shop.filters.in_stock': 'text',
+  'shop.filters.price_from_label': 'text',
+  'shop.filters.price_to_label': 'text',
+  'shop.filters.brand_search': 'text',
+  'shop.filters.brands_show_all': 'text',
+  'shop.filters.brands_show_fewer': 'text',
+  'shop.filters.brands_none': 'text',
   'shop.filters.rating_title': 'text',
   'shop.filters.rating_options': 'list',
   'shop.filters.mobile_button': 'text',
@@ -1274,6 +1292,8 @@ export const CMS_KINDS: Record<keyof CmsEntries, CmsKind> = {
   'shop.chips.organic': 'text',
   'shop.chips.on_sale': 'text',
   'shop.chips.price': 'text',
+  'shop.chips.price_from': 'text',
+  'shop.chips.in_stock': 'text',
   'shop.chips.rating': 'text',
   'shop.chips.remove_aria': 'text',
   'shop.chips.clear_all': 'text',

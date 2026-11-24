@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Mail, RotateCw } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAction, useAdminQuery, dateTime, errorText } from '../lib';
-import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Field, Loading, Notice, Screen, Table, Td, TextArea, TextInput, Th, Tr, usePager } from '../ui';
+import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Field, Loading, Notice, Screen, SearchInput, Table, Td, TextArea, TextInput, Th, Tr, usePager } from '../ui';
 
 interface Template { code: string; name: string; locale: string; channel: string; subject: string | null; body: string; updatedAt: string; isMarketing: boolean; placeholders: string[] }
 interface Message { id: string; channel: string; template: string | null; to: string; subject: string | null; body: string; status: string; attempts: number; error: string | null; isMarketing: boolean; order: string | null; createdAt: string; sentAt: string | null }
@@ -63,18 +63,24 @@ const Templates: React.FC = () => {
   const { data, isLoading, error, refetch } = useAdminQuery<Template[]>('admin_list_message_templates');
   const [open, setOpen] = useState<Template | null>(null);
   const [group, setGroup] = useState<string>('Orders');
+  const [q, setQ] = useState('');
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
   const all = data ?? [];
   const groups = GROUPS.filter((g) => all.some((t) => groupOf(t) === g.key));
   const current = groups.find((g) => g.key === group) ?? groups[0];
+  const s = q.trim().toLowerCase();
+  // while searching, matches from every group are shown together
+  const shown = s ? all.filter((t) => `${t.name} ${t.subject ?? ''} ${t.body}`.toLowerCase().includes(s)) : all.filter((t) => groupOf(t) === current?.key);
   return (
     <div className="space-y-4">
-      <Chips value={current?.key ?? ''} onChange={setGroup} options={groups.map((g) => ({ value: g.key, label: g.key, count: all.filter((t) => groupOf(t) === g.key).length }))} />
-      {current && (
-        <Card key={current.key} title={`${current.key} emails`} description={current.text} padded={false}>
+      <SearchInput value={q} onChange={setQ} placeholder="Search emails by name, subject or words…" />
+      {!s && <Chips value={current?.key ?? ''} onChange={setGroup} options={groups.map((g) => ({ value: g.key, label: g.key, count: all.filter((t) => groupOf(t) === g.key).length }))} />}
+      {(s || current) && (
+        <Card key={s ? 'search' : current!.key} title={s ? `${shown.length} email${shown.length === 1 ? '' : 's'} match “${q.trim()}”` : `${current!.key} emails`} description={s ? undefined : current!.text} padded={false}>
+          {!shown.length && <p className="px-5 py-4 text-[14px] text-[#5F6B7A]">No email matches. Try fewer words.</p>}
           <ul>
-            {all.filter((t) => groupOf(t) === current.key).map((t) => (
+            {shown.map((t) => (
               <li key={`${t.code}-${t.channel}`} className="border-b border-[#E8EBEF] last:border-0">
                 <button type="button" onClick={() => setOpen(t)} className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[#FFFCEB] cursor-pointer group">
                   <Mail className="w-4 h-4 text-[#7A8594] shrink-0" />

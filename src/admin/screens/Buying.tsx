@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, money, pence, date, dateTime } from '../lib';
-import { Badge, Button, Card, Checkbox, Chips, ConfirmButton, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, MoneyInput, NumberInput, SampleTag, Screen, Select, Table, Tabs, Td, TextArea, TextInput, Th, Tr, usePager } from '../ui';
+import { Badge, Button, Card, Checkbox, ConfirmButton, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, MoneyInput, NumberInput, SampleTag, Screen, Select, Table, Tabs, Td, TextArea, TextInput, Th, Tr, usePager, FilterBar } from '../ui';
 import { ProductPicker } from '../pickers';
 import { toast } from '../toast';
 
@@ -19,8 +19,10 @@ const PO_STATUS: Record<string, { label: string; tone: 'grey' | 'blue' | 'amber'
   received: { label: 'Received', tone: 'green' }, cancelled: { label: 'Cancelled', tone: 'red' },
 };
 
-export default function BuyingScreen(_: ScreenProps) {
-  const [tab, setTab] = useState('orders');
+export default function BuyingScreen({ param }: ScreenProps) {
+  // /admin/buying/suppliers:<name> opens the Suppliers tab searching for that supplier
+  const supplierQ = param?.startsWith('suppliers:') ? param.slice(10) : null;
+  const [tab, setTab] = useState(param === 'suppliers' || supplierQ !== null ? 'suppliers' : 'orders');
   return (
     <Screen
       title="Suppliers & buying"
@@ -33,7 +35,7 @@ export default function BuyingScreen(_: ScreenProps) {
       </ol>}
     >
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'orders', label: 'Purchase orders' }, { value: 'suppliers', label: 'Suppliers' }]} />
-      {tab === 'orders' ? <Orders /> : <Suppliers />}
+      {tab === 'orders' ? <Orders /> : <Suppliers key={supplierQ ?? ''} initialQ={supplierQ ?? ''} />}
     </Screen>
   );
 }
@@ -44,14 +46,17 @@ const Orders: React.FC = () => {
   const canEdit = hasPermission('inventory');
   const [status, setStatus] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Po[]>('admin_list_purchase_orders', { p_status: status || undefined });
-  const { pageItems: poPage, pager: poPager } = usePager(data, 25);
+  const [poQ, setPoQ] = useState('');
+  const [poSup, setPoSup] = useState('');
+  const pos = (data ?? []).filter((p) => (!poQ.trim() || `${p.number} ${p.supplier.name} ${p.notes ?? ''}`.toLowerCase().includes(poQ.trim().toLowerCase())) && (!poSup || p.supplier.id === poSup));
+  const poSuppliers = [...new Map((data ?? []).map((p) => [p.supplier.id, p.supplier.name])).entries()];
+  const { pageItems: poPage, pager: poPager } = usePager(pos, 25);
   const { run, busy } = useAction();
   const [open, setOpen] = useState<Po | 'new' | null>(null);
   const live = open && open !== 'new' ? data?.find((p) => p.id === open.id) ?? open : open;
   return (
     <>
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
-        <Chips value={status} onChange={setStatus} options={[{ value: '', label: 'All' }, ...Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label }))]} />
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-end">
         {canEdit && <div className="flex gap-2">
           <Button icon={<Wand2 className="w-4 h-4" />} loading={busy} onClick={async () => {
             const r = await run<{ created: number }>('admin_generate_reorder_drafts', undefined, { refresh: ['admin_list_purchase_orders'] });
@@ -61,8 +66,13 @@ const Orders: React.FC = () => {
         </div>}
       </div>
       <Card padded={false}>
-        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !data?.length ? (
-          <Empty icon={<ClipboardList className="w-5 h-5" />} title="No purchase orders" text="Create one, or let the shop draft them for low stock." />
+        <FilterBar search={{ value: poQ, onChange: setPoQ, placeholder: 'Search by order number or supplier…' }} count={isLoading ? null : pos.length} noun={['purchase order', 'purchase orders']}
+          filters={[
+            { key: 'status', label: 'Status', value: status, onChange: setStatus, allLabel: 'All statuses', options: Object.entries(PO_STATUS).map(([value, s]) => ({ value, label: s.label })) },
+            { key: 'supplier', label: 'Supplier', value: poSup, onChange: setPoSup, allLabel: 'All suppliers', options: poSuppliers.map(([id, name]) => ({ value: id, label: name })) },
+          ]} />
+        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !pos.length ? (
+          <Empty icon={<ClipboardList className="w-5 h-5" />} title={data?.length ? 'No purchase orders match' : 'No purchase orders'} text={data?.length ? 'Try clearing the search or filters.' : 'Create one, or let the shop draft them for low stock.'} />
         ) : (
           <Table>
             <thead><tr><Th>Order</Th><Th>Supplier</Th><Th>Status</Th><Th className="text-right">Value</Th><Th>Expected</Th><Th>Created</Th></tr></thead>
@@ -183,16 +193,26 @@ const Receive: React.FC<{ po: Po; onClose: () => void }> = ({ po, onClose }) => 
 };
 
 // ── suppliers ───────────────────────────────────────────────────────────────────────────────────
-const Suppliers: React.FC = () => {
+const Suppliers: React.FC<{ initialQ?: string }> = ({ initialQ = '' }) => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('inventory');
   const { data, isLoading, error, refetch } = useAdminQuery<Supplier[]>('admin_list_suppliers');
-  const { pageItems: supPage, pager: supPager } = usePager(data, 25);
+  const [sq, setSq] = useState(initialQ);
+  const [sActive, setSActive] = useState('');
+  const [sChecked, setSChecked] = useState('');
+  const sups = (data ?? []).filter((s) => (!sq.trim() || `${s.name} ${s.email ?? ''} ${s.contactPerson ?? ''} ${s.category ?? ''}`.toLowerCase().includes(sq.trim().toLowerCase()))
+    && (!sActive || (sActive === 'yes' ? s.isActive : !s.isActive)) && (!sChecked || (sChecked === 'yes' ? s.contactsVerified : !s.contactsVerified)));
+  const { pageItems: supPage, pager: supPager } = usePager(sups, 25);
   const [editing, setEditing] = useState<Partial<Supplier> | null>(null);
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
   return (
     <Card padded={false} title={`${data?.length ?? 0} suppliers`} actions={canEdit && <Button size="sm" variant="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setEditing({ isActive: true })}>Add supplier</Button>}>
+      <FilterBar search={{ value: sq, onChange: setSq, placeholder: 'Search suppliers by name, contact or what they supply…' }} count={sups.length} noun={['supplier', 'suppliers']}
+        filters={[
+          { key: 'active', label: 'Status', value: sActive, onChange: setSActive, allLabel: 'All suppliers', options: [{ value: 'yes', label: 'Active' }, { value: 'no', label: 'Inactive' }] },
+          { key: 'checked', label: 'Contact details', value: sChecked, onChange: setSChecked, allLabel: 'Any', options: [{ value: 'yes', label: 'Checked (orders are emailed)' }, { value: 'no', label: 'Not checked yet' }] },
+        ]} />
       <Table>
         <thead><tr><Th>Supplier</Th><Th>Contact</Th><Th className="text-right">Products</Th><Th className="text-right">Open orders</Th><Th /></tr></thead>
         <tbody>

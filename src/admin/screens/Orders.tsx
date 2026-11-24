@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, usePagedList, money, dateTime, ORDER_STATUS, errorText, londonToday, type Paged } from '../lib';
-import { Badge, Button, Card, Empty, ErrorState, Field, Loading, OrderStatus, Pager, SampleTag, Screen, SearchInput, Segmented, Select, Table, Td, Th, TextInput, Tr, cx } from '../ui';
+import { Badge, Button, Card, Empty, ErrorState, Field, Loading, OrderStatus, Pager, SampleTag, Screen, SearchInput, Segmented, Select, Table, Td, Th, TextInput, Tr, cx, FilterBar } from '../ui';
 import { OrderPanel, slotText, type SlotInfo } from '../OrderPanel';
 import { PickOrder } from './Picking';
 import { Deliver, SendOut, type Row as DeliveryRow } from './Deliveries';
@@ -72,6 +72,8 @@ const Board: React.FC<{ onOpen: (id: string) => void; onPick: (id: string) => vo
   const canList = hasPermission('order_status');
   const canPick = hasPermission('packing_queue');
   const [day, setDay] = useState('all');
+  const [find, setFind] = useState('');
+  const [area, setArea] = useState('');
   const opts = { refetchInterval: 30_000, enabled: canList };
   const q = {
     placed: useAdminQuery<Paged<OrderRow>>('admin_list_orders', { p_status: 'placed', p_limit: 200 }, opts),
@@ -93,7 +95,10 @@ const Board: React.FC<{ onOpen: (id: string) => void; onPick: (id: string) => vo
 
   const today = londonToday();
   const tomorrow = londonToday(1);
-  const inDay = (c: Card) => day === 'all' || (day === 'today' ? c.slot?.localDate === today : c.slot?.localDate === tomorrow);
+  const s = find.trim().toLowerCase();
+  const areas = [...new Set(cards.map((c) => c.raw?.zone ?? c.where ?? '').filter(Boolean))].sort();
+  const inDay = (c: Card) => (day === 'all' || (day === 'today' ? c.slot?.localDate === today : c.slot?.localDate === tomorrow))
+    && (!s || `${c.orderNumber} ${c.customer} ${c.where ?? ''}`.toLowerCase().includes(s)) && (!area || (c.raw?.zone ?? c.where) === area);
   const columns = COLUMNS.filter((col) => canList || col.key === 'new' || col.key === 'picking');
   const bySlot = (a: Card, b: Card) => (a.slot?.startsAt ?? '9').localeCompare(b.slot?.startsAt ?? '9');
 
@@ -102,9 +107,12 @@ const Board: React.FC<{ onOpen: (id: string) => void; onPick: (id: string) => vo
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-[13.5px] font-medium">Delivery day</span>
-        <Segmented size="sm" value={day} onChange={setDay} options={[...(canList ? [{ value: 'all', label: 'All' }] : []), { value: 'today', label: 'Today' }, { value: 'tomorrow', label: 'Tomorrow' }]} />
+      <div className="bg-white rounded-lg border border-[#D6DBE1] p-3 flex flex-col lg:flex-row gap-3 lg:items-end">
+        <label className="flex-1 min-w-0"><span className="block text-[12.5px] font-medium text-[#3F4652] mb-1">Find an order</span><SearchInput value={find} onChange={setFind} placeholder="Order number, customer or area…" /></label>
+        <label className="lg:w-56"><span className="block text-[12.5px] font-medium text-[#3F4652] mb-1">Area</span><Select value={area} onChange={setArea} placeholder="All areas" options={areas.map((a) => ({ value: a, label: a }))} /></label>
+        <div><span className="block text-[12.5px] font-medium text-[#3F4652] mb-1">Delivery day</span>
+          <Segmented value={day} onChange={setDay} options={[...(canList ? [{ value: 'all', label: 'All' }] : []), { value: 'today', label: 'Today' }, { value: 'tomorrow', label: 'Tomorrow' }]} /></div>
+        {(find || area || (canList && day !== 'all')) && <button type="button" onClick={() => { setFind(''); setArea(''); setDay(canList ? 'all' : 'today'); }} className="text-[12.5px] font-medium underline underline-offset-2 cursor-pointer lg:mb-2.5">Clear</button>}
       </div>
       <div className="grid grid-flow-col auto-cols-[minmax(270px,1fr)] gap-3 overflow-x-auto pb-2">
         {columns.map((col) => {
@@ -202,14 +210,12 @@ const AllOrders: React.FC<{ initialStatus: string; onOpen: (id: string) => void 
   const counts = list.first?.statusCounts ?? {};
   return (
     <Card padded={false}>
-      <div className="p-4 space-y-4 border-b border-[#E2E6EB]">
-        <SearchInput value={q} onChange={setQ} placeholder="Search by order number, customer name, email or postcode…" />
-        <div className="grid sm:grid-cols-3 gap-4">
-          <Field label="Stage"><Select value={status} onChange={setStatus} placeholder="All stages" options={STAGES.map((s) => ({ value: s, label: `${ORDER_STATUS[s].label}${counts[s] != null ? ` (${counts[s]})` : ''}` }))} /></Field>
+      <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search by order number, customer name, email or postcode…' }} count={list.isLoading ? null : list.total} noun={['order', 'orders']}
+        filters={[{ key: 'stage', label: 'Stage', value: status, onChange: setStatus, allLabel: 'All stages', options: STAGES.map((s) => ({ value: s, label: `${ORDER_STATUS[s].label}${counts[s] != null ? ` (${counts[s]})` : ''}` })) }]}
+        extra={<>
           <Field label="Placed from"><TextInput type="date" value={from} onChange={setFrom} /></Field>
           <Field label="Placed until"><TextInput type="date" value={to} onChange={setTo} /></Field>
-        </div>
-      </div>
+        </>} />
       {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} text={errorText(list.error)} onRetry={() => void list.refetch()} /> : !list.items.length ? (
         <Empty icon={<ShoppingBag className="w-5 h-5" />} title="No orders found" text={q || status || from || to ? 'Try clearing the search or filters.' : 'Orders appear here as soon as customers place them.'} />
       ) : (

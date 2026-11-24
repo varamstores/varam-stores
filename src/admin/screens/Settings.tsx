@@ -3,7 +3,7 @@ import { CheckCircle2, ChevronDown } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, dateTime } from '../lib';
-import { Badge, Button, Card, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, Screen, Select, Table, Tabs, Td, TextInput, Th, Toggle, cx } from '../ui';
+import { Badge, Button, Card, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, Screen, Select, Table, Tabs, Td, TextInput, Th, Toggle, cx, SearchInput } from '../ui';
 
 interface Setting { key: string; label: string; help: string | null; kind: string; options: Array<{ value: string; label: string }> | null; min: number | null; max: number | null; editable: boolean; value: unknown; updatedAt: string; updatedBy: string | null }
 interface Group { group: string; settings: Setting[] }
@@ -37,17 +37,22 @@ export default function SettingsScreen(_: ScreenProps) {
 const ShopSettings: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
   const { data, isLoading, error, refetch } = useAdminQuery<Group[]>('admin_get_settings');
   const [showFixed, setShowFixed] = useState(false);
+  const [q, setQ] = useState('');
   if (isLoading) return <Loading />;
   if (error || !data) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
+  const s = q.trim().toLowerCase();
+  const groups = s ? data.map((g) => ({ ...g, settings: g.settings.filter((x) => `${x.label} ${x.help ?? ''} ${g.group}`.toLowerCase().includes(s)) })).filter((g) => g.settings.length) : data;
   return (
     <div className="space-y-4">
+      <SearchInput value={q} onChange={setQ} placeholder="Search settings, e.g. delivery, loyalty, email…" />
+      {s && !groups.length && <Notice tone="info">No setting matches “{q.trim()}”.</Notice>}
       {!canEdit && <Notice tone="info">Only a Store Manager can change these.</Notice>}
-      {data.map((g) => {
+      {groups.map((g) => {
         const fixed = g.settings.every((s) => !s.editable);
         if (fixed) return (
           <Card key={g.group}>
             <button type="button" onClick={() => setShowFixed(!showFixed)} className="w-full flex items-center justify-between text-sm font-semibold text-slate-500 cursor-pointer">{g.group}<ChevronDown className={cx('w-4 h-4 transition-transform', showFixed && 'rotate-180')} /></button>
-            {showFixed && <div className="mt-3 divide-y divide-slate-100">{g.settings.map((s) => <div key={s.key} className="py-2 flex justify-between gap-4 text-sm"><span className="text-slate-500">{s.label}</span><span className="font-mono text-xs break-all">{String(s.value)}</span></div>)}</div>}
+            {(showFixed || !!s) && <div className="mt-3 divide-y divide-slate-100">{g.settings.map((s) => <div key={s.key} className="py-2 flex justify-between gap-4 text-sm"><span className="text-slate-500">{s.label}</span><span className="font-mono text-xs break-all">{String(s.value)}</span></div>)}</div>}
           </Card>
         );
         return (

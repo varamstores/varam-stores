@@ -35,6 +35,7 @@ function productArgs(f: ProductFilters) {
     p_min_price: f.minPrice,
     p_max_price: f.maxPrice,
     p_min_rating: f.minRating,
+    p_in_stock: f.inStock ? true : undefined,
     p_sort: f.sort,
     p_postcode: f.postcode,
     p_limit: f.limit,

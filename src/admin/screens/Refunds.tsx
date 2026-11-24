@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, money, dateTime, errorText, newKey } from '../lib';
-import { Badge, Card, Chips, ConfirmButton, Empty, ErrorState, Loading, Screen, Table, Td, Th, Tr, usePager } from '../ui';
+import { Badge, Card, ConfirmButton, Empty, ErrorState, Loading, Screen, Table, Td, Th, Tr, usePager, FilterBar } from '../ui';
 import { OrderPanel } from '../OrderPanel';
 
 interface RefundRequest {
@@ -19,8 +19,10 @@ export default function RefundsScreen({ go }: ScreenProps) {
   const { hasPermission } = useAuth();
   const [status, setStatus] = useState('pending');
   const [open, setOpen] = useState<string | null>(null);
+  const [q, setQ] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<RefundRequest[]>('admin_list_refund_requests', { p_status: status });
-  const { pageItems, pager } = usePager(data, 25);
+  const rows = (data ?? []).filter((r) => !q.trim() || `${r.orderNumber} ${r.customer ?? ''} ${r.reason} ${r.requestedBy ?? ''}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const { pageItems, pager } = usePager(rows, 25);
   const { run } = useAction();
   const keys = useRef(new Map<string, string>());
   const keyFor = (id: string) => { if (!keys.current.has(id)) keys.current.set(id, newKey()); return keys.current.get(id)!; };
@@ -36,9 +38,10 @@ export default function RefundsScreen({ go }: ScreenProps) {
         <li>Approving sends the money back through the card company (it reaches the customer in 5–10 days), issues a credit note, takes back loyalty points earned on it and emails the customer.</li>
       </ol>}
     >
-      <Chips value={status} onChange={setStatus} options={[{ value: 'pending', label: 'Waiting' }, { value: 'processed', label: 'Refunded' }, { value: 'rejected', label: 'Rejected' }, { value: 'failed', label: 'Failed' }]} />
       <Card padded={false}>
-        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !data?.length ? (
+        <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search by order number, customer or reason…' }} count={isLoading ? null : rows.length} noun={['refund', 'refunds']}
+          filters={[{ key: 'status', label: 'Show', value: status, onChange: setStatus, defaultValue: 'pending', options: [{ value: 'pending', label: 'Waiting for a decision' }, { value: 'processed', label: 'Refunded' }, { value: 'rejected', label: 'Rejected' }, { value: 'failed', label: 'Failed' }] }]} />
+        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !rows.length ? (
           <Empty icon={<Undo2 className="w-5 h-5" />} title={status === 'pending' ? 'No refunds waiting' : 'Nothing here'} />
         ) : (
           <Table>

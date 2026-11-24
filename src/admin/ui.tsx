@@ -368,6 +368,54 @@ export const Select: React.FC<{
   );
 };
 
+export interface FilterDef { key: string; label: string; options: Option[]; value: string; onChange: (v: string) => void; allLabel?: string; defaultValue?: string; hidden?: boolean }
+
+/**
+ * The same filter bar on every list: a search box, labelled drop-down filters, the filters in use
+ * shown as chips you can remove one by one, "Clear all", and how many results match.
+ */
+export const FilterBar: React.FC<{
+  search?: { value: string; onChange: (v: string) => void; placeholder: string };
+  filters?: FilterDef[]; count?: number | null; noun?: [string, string]; extra?: React.ReactNode;
+}> = ({ search, filters = [], count, noun = ['result', 'results'], extra }) => {
+  const visible = filters.filter((f) => !f.hidden);
+  const active = visible.filter((f) => f.value !== (f.defaultValue ?? ''));
+  const any = active.length > 0 || !!search?.value;
+  const clear = () => { search?.onChange(''); visible.forEach((f) => f.onChange(f.defaultValue ?? '')); };
+  return (
+    <div className="p-4 space-y-3 border-b border-[#E2E6EB]">
+      {search && <SearchInput value={search.value} onChange={search.onChange} placeholder={search.placeholder} />}
+      {(visible.length > 0 || extra) && (
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
+          {visible.map((f) => (
+            <label key={f.key} className="block min-w-0">
+              <span className="block text-[12.5px] font-medium text-[#3F4652] mb-1">{f.label}</span>
+              <Select value={f.value} onChange={f.onChange} options={f.options} placeholder={f.defaultValue === undefined || f.defaultValue === '' ? f.allLabel ?? 'All' : undefined} aria-label={f.label} />
+            </label>
+          ))}
+          {extra}
+        </div>
+      )}
+      {(any || count != null) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {search?.value && (
+            <button type="button" onClick={() => search.onChange('')} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-md bg-[#18181B] text-white text-[12.5px] cursor-pointer">
+              Search: “{search.value}” <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {active.map((f) => (
+            <button key={f.key} type="button" onClick={() => f.onChange(f.defaultValue ?? '')} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-md bg-[#18181B] text-white text-[12.5px] cursor-pointer" title="Remove this filter">
+              {f.label}: {f.options.find((o) => o.value === f.value)?.label ?? f.value} <X className="w-3.5 h-3.5" />
+            </button>
+          ))}
+          {any && <button type="button" onClick={clear} className="text-[12.5px] font-medium underline underline-offset-2 text-[#3F4652] cursor-pointer">Clear all</button>}
+          {count != null && <span className="ml-auto text-[12.5px] text-[#5F6B7A]">{count} {count === 1 ? noun[0] : noun[1]}</span>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** Grams or kilos, the shopper's choice; the value is always stored in grams. */
 export const WeightInput: React.FC<{ value: number | null | undefined; onChange: (grams: number | null) => void; disabled?: boolean; className?: string }> = ({ value, onChange, disabled, className }) => {
   const [unit, setUnit] = useState<'g' | 'kg'>(value != null && value >= 1000 ? 'kg' : 'g');

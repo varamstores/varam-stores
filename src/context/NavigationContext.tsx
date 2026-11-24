@@ -19,6 +19,8 @@ interface Route {
   organic: boolean;
   onSale: boolean;
   maxPrice: number | null; // whole pounds; null = no limit
+  minPrice: number | null; // whole pounds; null = no minimum
+  inStock: boolean;
   brands: string[];
   pageKey: string | null;
   subPath: string | null; // /account/<tab>, /admin/<tab>
@@ -30,6 +32,7 @@ function parseLocation(): Route {
   const legacyPage = params.get('page');
   const sortParam = params.get('sort') as ProductSort | null;
   const max = params.get('max') ?? params.get('maxPrice');
+  const min = params.get('min');
   const route: Route = {
     view: 'home',
     category: params.get('category') || 'all',
@@ -39,6 +42,8 @@ function parseLocation(): Route {
     organic: params.get('organic') === '1' || params.get('organic') === 'true',
     onSale: params.get('sale') === '1' || params.get('onSale') === 'true',
     maxPrice: max && Number.isFinite(Number(max)) && Number(max) > 0 ? Number(max) : null,
+    minPrice: min && Number.isFinite(Number(min)) && Number(min) > 0 ? Number(min) : null,
+    inStock: params.get('stock') === '1',
     brands: (params.get('brand') ?? '').split(',').map((b) => b.trim()).filter(Boolean),
     pageKey: null,
     subPath: null,
@@ -71,14 +76,16 @@ function parseLocation(): Route {
   return route;
 }
 
-function shopPath(r: Pick<Route, 'category' | 'search' | 'sort' | 'organic' | 'onSale' | 'maxPrice' | 'brands'>): string {
+function shopPath(r: Pick<Route, 'category' | 'search' | 'sort' | 'organic' | 'onSale' | 'maxPrice' | 'minPrice' | 'inStock' | 'brands'>): string {
   const p = new URLSearchParams();
   if (r.category && r.category !== 'all') p.set('category', r.category);
   if (r.search.trim()) p.set('q', r.search.trim());
   if (r.sort !== 'featured') p.set('sort', r.sort);
   if (r.organic) p.set('organic', '1');
   if (r.onSale) p.set('sale', '1');
+  if (r.minPrice != null) p.set('min', String(r.minPrice));
   if (r.maxPrice != null) p.set('max', String(r.maxPrice));
+  if (r.inStock) p.set('stock', '1');
   if (r.brands.length) p.set('brand', r.brands.join(','));
   const qs = p.toString();
   return qs ? `/shop?${qs}` : '/shop';
@@ -104,6 +111,8 @@ interface NavigationContextType {
   filterOrganic: boolean;
   filterOnSale: boolean;
   maxPrice: number | null;
+  minPrice: number | null;
+  inStock: boolean;
   selectedBrands: string[];
   pageKey: string | null;
   subPath: string | null;
@@ -126,6 +135,8 @@ interface NavigationContextType {
   setFilterOrganic: (organic: boolean) => void;
   setFilterOnSale: (onSale: boolean) => void;
   setMaxPrice: (pounds: number | null) => void;
+  setMinPrice: (pounds: number | null) => void;
+  setInStock: (inStock: boolean) => void;
   setSelectedBrands: (brands: string[]) => void;
   resetFilters: () => void;
 }
@@ -197,6 +208,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       filterOrganic: route.organic,
       filterOnSale: route.onSale,
       maxPrice: route.maxPrice,
+      minPrice: route.minPrice,
+      inStock: route.inStock,
       selectedBrands: route.brands,
       pageKey: route.pageKey,
       subPath: route.subPath,
@@ -212,6 +225,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           organic: o?.filterOrganic ?? (keep ? route.organic : false),
           onSale: o?.filterOnSale ?? (keep ? route.onSale : false),
           maxPrice: keep ? route.maxPrice : null,
+          minPrice: keep ? route.minPrice : null,
+          inStock: keep ? route.inStock : false,
           brands: o?.brands ?? (keep ? route.brands : []),
         }));
       },
@@ -229,6 +244,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setFilterOrganic: (organic) => shop({ organic }),
       setFilterOnSale: (onSale) => shop({ onSale }),
       setMaxPrice: (maxPrice) => shop({ maxPrice }),
+      setMinPrice: (minPrice) => shop({ minPrice }),
+      setInStock: (inStock) => shop({ inStock }),
       setSelectedBrands: (brands) => shop({ brands }),
       resetFilters: () => { go('/shop', { scrollTop: false }); scrollToTopImmediate(); },
     };

@@ -119,6 +119,8 @@ export interface ProductFacets {
   priceRange: { min: Money | null; max: Money | null };
   onSaleCount: number;
   organicCount: number;
+  inStockCount?: number;
+  categories?: { slug: string; name: string; count: number }[];
 }
 export type ProductListing = Page<ProductSummary> & { facets: ProductFacets };
 
@@ -133,6 +135,7 @@ export interface ProductFilters {
   minPrice?: number; // pence
   maxPrice?: number; // pence
   minRating?: number;
+  inStock?: boolean;
   sort?: ProductSort;
   postcode?: string;
   limit?: number;

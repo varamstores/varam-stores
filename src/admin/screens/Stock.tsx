@@ -3,7 +3,7 @@ import { Boxes, Download, Upload } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminQuery, errorText, downloadText, londonToday, pence, date } from '../lib';
-import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, Modal, Screen, SearchInput, Table, Td, Th, Thumb, Tr, usePager } from '../ui';
+import { Badge, Button, Card, Empty, ErrorState, Loading, Modal, Screen, Table, Td, Th, Thumb, Tr, usePager, FilterBar } from '../ui';
 import { AdjustStock, StockHistory, StockLevels } from '../StockForms';
 import { CsvImport } from '../CsvImport';
 
@@ -17,8 +17,12 @@ export default function StockScreen({ param }: ScreenProps) {
   const canEdit = hasPermission('inventory');
   const [filter, setFilter] = useState(param === 'low' || param === 'out' ? param : 'all');
   const [q, setQ] = useState('');
+  const [supplier, setSupplier] = useState('');
+  const [pstatus, setPstatus] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Row[]>('admin_list_inventory', { p_filter: filter, p_q: q || undefined });
-  const { pageItems, pager } = usePager(data, 25);
+  const rows = (data ?? []).filter((r) => (!supplier || (supplier === '__none' ? !r.supplier : r.supplier?.id === supplier)) && (!pstatus || r.status === pstatus));
+  const suppliers = [...new Map((data ?? []).filter((r) => r.supplier).map((r) => [r.supplier!.id, r.supplier!.name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const { pageItems, pager } = usePager(rows, 25);
   const [adjust, setAdjust] = useState<Row | null>(null);
   const [levels, setLevels] = useState<Row | null>(null);
   const [history, setHistory] = useState<Row | null>(null);
@@ -45,11 +49,13 @@ export default function StockScreen({ param }: ScreenProps) {
       </>}
     >
       <Card padded={false}>
-        <div className="p-4 flex flex-col md:flex-row gap-2 md:items-center border-b border-slate-100">
-          <SearchInput value={q} onChange={setQ} placeholder="Search by name or SKU…" className="flex-1" />
-          <Chips value={filter} onChange={setFilter} options={[{ value: 'all', label: 'All' }, { value: 'low', label: 'Running low' }, { value: 'out', label: 'Out of stock' }]} />
-        </div>
-        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !data?.length ? (
+        <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search stock by product name or SKU…' }} count={isLoading ? null : rows.length} noun={['product', 'products']}
+          filters={[
+            { key: 'level', label: 'Stock level', value: filter, onChange: setFilter, defaultValue: 'all', options: [{ value: 'all', label: 'All products' }, { value: 'low', label: 'Running low' }, { value: 'out', label: 'Out of stock' }] },
+            { key: 'supplier', label: 'Main supplier', value: supplier, onChange: setSupplier, allLabel: 'All suppliers', options: [...suppliers.map(([id, name]) => ({ value: id, label: name })), { value: '__none', label: 'No supplier yet' }] },
+            { key: 'status', label: 'Product', value: pstatus, onChange: setPstatus, allLabel: 'On sale and drafts', options: [{ value: 'active', label: 'On sale' }, { value: 'draft', label: 'Drafts' }, { value: 'archived', label: 'Archived' }] },
+          ]} />
+        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !rows.length ? (
           <Empty icon={<Boxes className="w-5 h-5" />} title={filter === 'all' ? 'No products found' : 'Nothing here — well stocked!'} />
         ) : (
           <Table>

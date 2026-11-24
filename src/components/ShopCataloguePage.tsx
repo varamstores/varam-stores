@@ -5,7 +5,8 @@ import { ProductCard } from './ProductCard';
 import { ProductCardSkeleton } from './ProductShelf';
 import { useNavigation } from '../context/NavigationContext';
 import { backdropVariants, MOTION_DURATIONS, MOTION_EASINGS } from '../motion';
-import { findCategory, useBrands, useCategories, useInfiniteProducts } from '../lib/catalogue';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProducts, findCategory, useBrands, useCategories, useInfiniteProducts } from '../lib/catalogue';
 import { formatPence, poundsToPence } from '../lib/money';
 import { useCms } from '../cms/CmsProvider';
 import { InlineText } from '../cms/components';
@@ -43,14 +44,13 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
   const nav = useNavigation();
   const {
     selectedCategory, setSelectedCategory, searchQuery, setSearchQuery, sortOption, setSortOption,
-    filterOrganic, setFilterOrganic, filterOnSale, setFilterOnSale, maxPrice, setMaxPrice,
+    filterOrganic, setFilterOrganic, filterOnSale, setFilterOnSale, maxPrice, setMaxPrice, minPrice, setMinPrice, inStock, setInStock,
     selectedBrands, setSelectedBrands, resetFilters, goToHome,
   } = nav;
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [minRating, setMinRating] = useState<number>(0);
   const [searchDraft, setSearchDraft] = useState(searchQuery);
   const { data: categories = [] } = useCategories();
-  const { data: popularBrands = [] } = useBrands(true);
   const { data: allBrands = [] } = useBrands();
 
   // Search is applied after the shopper pauses typing.
@@ -68,12 +68,22 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
     organic: filterOrganic,
     onSale: filterOnSale,
     maxPrice: maxPrice != null ? poundsToPence(maxPrice) : undefined,
+    minPrice: minPrice != null ? poundsToPence(minPrice) : undefined,
+    inStock,
     minRating: minRating > 0 ? minRating : undefined,
     sort: sortOption,
     postcode: undefined,
     limit: PAGE_SIZE,
   };
   const query = useInfiniteProducts(filters);
+  // brand counts are worked out without the brand filter, so ticking one brand keeps the others listed
+  const brandFacetQuery = useQuery({
+    queryKey: ['brand-facets', { ...filters, brands: undefined, limit: 1 }],
+    queryFn: () => fetchProducts({ ...filters, brands: undefined, limit: 1 }),
+    staleTime: 60_000,
+  });
+  const [brandQ, setBrandQ] = useState('');
+  const [showAllBrands, setShowAllBrands] = useState(false);
   const products = useMemo(() => query.data?.pages.flatMap((p) => p.items) ?? [], [query.data]);
   const first = query.data?.pages[0];
   const total = first?.total ?? 0;
@@ -83,7 +93,7 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [selectedCategory, searchQuery, filterOrganic, filterOnSale, maxPrice, minRating, selectedBrands]);
+  }, [selectedCategory, searchQuery, filterOrganic, filterOnSale, maxPrice, minPrice, inStock, minRating, selectedBrands]);
 
   useEffect(() => {
     if (!isMobileFilterOpen) return;
@@ -105,7 +115,7 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
   useSeo('shop', { title: activeCategory?.name ?? null });
 
   const activeFiltersCount = (selectedCategory !== 'all' ? 1 : 0) + (filterOrganic ? 1 : 0) + (filterOnSale ? 1 : 0)
-    + (maxPrice != null ? 1 : 0) + (minRating > 0 ? 1 : 0) + (searchQuery.trim() ? 1 : 0) + selectedBrands.length;
+    + (maxPrice != null ? 1 : 0) + (minPrice != null ? 1 : 0) + (inStock ? 1 : 0) + (minRating > 0 ? 1 : 0) + (searchQuery.trim() ? 1 : 0) + selectedBrands.length;
   const reset = () => {
     setMinRating(0);
     resetFilters();
@@ -124,28 +134,44 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
     </span>
   );
 
-  const brandPills = (variant: 'desktop' | 'mobile') => (
-    <div className="flex flex-wrap gap-1.5">
-      {popularBrands.slice(0, 16).map((brand) => {
-        const isSelected = selectedBrands.includes(brand.slug);
-        return (
-          <button
-            key={brand.id}
-            type="button"
-            onClick={() => toggleBrand(brand.slug)}
-            aria-pressed={isSelected}
-            className={`px-2.5 py-1 rounded-lg ${variant === 'desktop' ? 'text-[11px]' : 'text-xs'} font-semibold transition-all cursor-pointer ${
-              isSelected ? 'bg-[#18181B] text-[#F5D103] shadow-xs' : variant === 'desktop'
-                ? 'bg-stone-50 border border-stone-200/80 text-stone-700 hover:text-[#B45309] hover:bg-amber-100 hover:border-[#F5D103]'
-                : 'bg-stone-100 text-stone-800'
-            }`}
-          >
-            {brand.name}
+  const brandOptions = (() => {
+    const facet = brandFacetQuery.data?.facets.brands ?? [];
+    const list = [...facet];
+    for (const slug of selectedBrands) if (!list.some((b) => b.slug === slug)) list.unshift({ slug, name: brandName(slug), count: 0 });
+    return list;
+  })();
+  const brandPills = (variant: 'desktop' | 'mobile') => {
+    const q = brandQ.trim().toLowerCase();
+    const matches = brandOptions.filter((b) => !q || b.name.toLowerCase().includes(q));
+    const shown = q || showAllBrands ? matches : matches.slice(0, 8);
+    const text = variant === 'desktop' ? 'text-xs' : 'text-sm';
+    return (
+      <div className="space-y-2">
+        {brandOptions.length > 8 && (
+          <input value={brandQ} onChange={(e) => setBrandQ(e.target.value)} placeholder={cms.t('shop.filters.brand_search')} aria-label={cms.t('shop.filters.brand_search')}
+            className="w-full h-9 px-3 rounded-lg border border-stone-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#F5D103]" />
+        )}
+        <div className="space-y-1">
+          {shown.map((brand) => {
+            const isSelected = selectedBrands.includes(brand.slug);
+            return (
+              <label key={brand.slug} className={`flex items-center gap-2.5 px-1 py-1 rounded-md cursor-pointer ${text} font-medium text-[#18181B] hover:bg-stone-50`}>
+                <input type="checkbox" checked={isSelected} onChange={() => toggleBrand(brand.slug)} className="w-4 h-4 rounded border-stone-300 cursor-pointer accent-[#F5D103]" />
+                <span className="flex-1 truncate">{brand.name}</span>
+                <span className="text-[11px] text-stone-400 tabular-nums">{brand.count}</span>
+              </label>
+            );
+          })}
+          {!shown.length && <p className={`${text} text-stone-500 px-1`}>{cms.t('shop.filters.brands_none')}</p>}
+        </div>
+        {!q && matches.length > 8 && (
+          <button type="button" onClick={() => setShowAllBrands(!showAllBrands)} className="text-xs font-bold text-[#B45309] hover:underline cursor-pointer">
+            {showAllBrands ? cms.t('shop.filters.brands_show_fewer') : cms.t('shop.filters.brands_show_all', { count: matches.length })}
           </button>
-        );
-      })}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   const priceSlider = (
     <input
@@ -161,6 +187,29 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
       className="w-full accent-[#F5D103] cursor-pointer"
       aria-label={cms.t('shop.filters.price_aria')}
     />
+  );
+  const commitPrice = (kind: 'min' | 'max', raw: string) => {
+    const v = raw.trim() === '' ? null : Number(raw.replace(/[£,\s]/g, ''));
+    if (v !== null && (!Number.isFinite(v) || v < 0)) return;
+    if (kind === 'min') setMinPrice(v && v > 0 ? v : null); else setMaxPrice(v && v > 0 ? v : null);
+  };
+  const priceBoxes = (
+    <div className="grid grid-cols-2 gap-2 mt-3">
+      {(['min', 'max'] as const).map((kind) => (
+        <label key={kind} className="block">
+          <span className="block text-[11px] font-semibold text-stone-500 mb-1">{cms.t(kind === 'min' ? 'shop.filters.price_from_label' : 'shop.filters.price_to_label')}</span>
+          <input key={`${kind}-${kind === 'min' ? minPrice : maxPrice}`} inputMode="decimal" defaultValue={(kind === 'min' ? minPrice : maxPrice) ?? ''}
+            onBlur={(e) => commitPrice(kind, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commitPrice(kind, (e.target as HTMLInputElement).value); }}
+            className="w-full h-9 px-2.5 rounded-lg border border-stone-300 text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-[#F5D103]" />
+        </label>
+      ))}
+    </div>
+  );
+  const stockToggle = (variant: 'desktop' | 'mobile') => (
+    <label className={`flex items-center gap-2.5 cursor-pointer ${variant === 'desktop' ? 'text-xs' : 'text-xs gap-3'} font-medium text-[#18181B]`}>
+      <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} className="w-4 h-4 rounded border-stone-300 cursor-pointer accent-[#F5D103]" />
+      <span>{cms.t('shop.filters.in_stock')}{facets?.inStockCount != null ? ` (${facets.inStockCount})` : ''}</span>
+    </label>
   );
   const priceLabel = maxPrice != null ? cms.t('shop.filters.price_up_to', { price: formatPence(poundsToPence(maxPrice)) }) : cms.t('shop.filters.price_any');
 
@@ -199,7 +248,7 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
           </div>
         </div>
 
-        {popularBrands.length > 0 && (
+        {brandOptions.length > 0 && (
           <div className="mb-6 pt-5 border-t border-stone-100">
             <div className="flex items-center justify-between mb-2.5">
               <h4 className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider">{cms.t('shop.filters.brands_title')}</h4>
@@ -226,6 +275,11 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
         </div>
 
         <div className="mb-6 pt-5 border-t border-stone-100">
+          <h4 className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider mb-3">{cms.t('shop.filters.availability_title')}</h4>
+          {stockToggle('desktop')}
+        </div>
+
+        <div className="mb-6 pt-5 border-t border-stone-100">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider">{cms.t('shop.filters.price_title')}</h4>
             <span className="text-xs font-bold text-[#18181B]">{priceLabel}</span>
@@ -235,6 +289,7 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
             <span>{formatPence(100)}</span>
             <span>{formatPence(priceCeiling * 100)}</span>
           </div>
+          {priceBoxes}
         </div>
 
         {ratingOptions.length > 0 && (
@@ -353,7 +408,9 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
                 {selectedBrands.map((b) => <React.Fragment key={b}>{chip(cms.t('shop.chips.brand', { name: brandName(b) }), () => toggleBrand(b))}</React.Fragment>)}
                 {filterOrganic && chip(<><Leaf className="w-3 h-3 text-[#B45309]" />{cms.t('shop.chips.organic')}</>, () => setFilterOrganic(false))}
                 {filterOnSale && chip(<><Tag className="w-3 h-3" />{cms.t('shop.chips.on_sale')}</>, () => setFilterOnSale(false))}
+                {minPrice != null && chip(cms.t('shop.chips.price_from', { price: formatPence(poundsToPence(minPrice)) }), () => setMinPrice(null), 'stone')}
                 {maxPrice != null && chip(cms.t('shop.chips.price', { price: formatPence(poundsToPence(maxPrice)) }), () => setMaxPrice(null), 'stone')}
+                {inStock && chip(cms.t('shop.chips.in_stock'), () => setInStock(false))}
                 {minRating > 0 && chip(cms.t('shop.chips.rating', { rating: minRating }), () => setMinRating(0), 'stone')}
                 {searchQuery.trim() && chip(<>&ldquo;{searchQuery}&rdquo;</>, () => setSearchQuery(''), 'stone')}
                 <button type="button" onClick={reset} className="text-xs font-bold text-[#B45309] hover:underline ml-1 cursor-pointer flex items-center gap-1">
@@ -469,7 +526,7 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
                     ))}
                   </div>
                 </div>
-                {popularBrands.length > 0 && (
+                {brandOptions.length > 0 && (
                   <div className="pt-4 border-t border-stone-100">
                     <div className="flex items-center justify-between mb-2.5">
                       <h4 className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider">{cms.t('shop.filters.brands_title')}</h4>
@@ -489,12 +546,17 @@ export const ShopCataloguePage: React.FC<ShopCataloguePageProps> = ({ onQuickVie
                     <span>{cms.t('shop.filters.on_sale')}</span>
                   </label>
                 </div>
+                <div className="pt-4 border-t border-stone-100 space-y-3">
+                  <h4 className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider mb-2">{cms.t('shop.filters.availability_title')}</h4>
+                  {stockToggle('mobile')}
+                </div>
                 <div className="pt-4 border-t border-stone-100">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-extrabold text-[#18181B] uppercase tracking-wider">{cms.t('shop.filters.price_title')}</h4>
                     <span className="text-xs font-bold text-[#18181B]">{priceLabel}</span>
                   </div>
                   {priceSlider}
+                  {priceBoxes}
                 </div>
               </div>
               <div className="p-4 border-t border-stone-100 bg-stone-50 flex items-center gap-3">

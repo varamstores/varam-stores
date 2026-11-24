@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, usePagedList, money, date, dateTime, errorText, type Paged } from '../lib';
-import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, NumberInput, OrderStatus, SampleTag, Screen, SearchInput, Select, Table, Td, TextArea, TextInput, Th, Tr, Pager } from '../ui';
+import { Badge, Button, Card, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, NumberInput, OrderStatus, SampleTag, Screen, Select, Table, Td, TextArea, TextInput, Th, Tr, Pager, FilterBar } from '../ui';
 import { MessageModal, OrderPanel } from '../OrderPanel';
 
 interface Row { id: string; name: string; tier: string | null; email: string; phone: string | null; points: number; status: string; hasLogin: boolean; isSample: boolean; orderCount: number; totalSpent: Money; lastOrderAt: string | null; memberSince: string; marketingEmail: boolean }
@@ -23,7 +23,7 @@ export default function CustomersScreen({ param, go }: ScreenProps) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [open, setOpen] = useState<string | null>(param);
-  const { items, isLoading, error, refetch, pager } = usePagedList<Row, Paged<Row>>('admin_list_customers', { p_q: q || undefined, p_status: status || undefined });
+  const { items, total, isLoading, error, refetch, pager } = usePagedList<Row, Paged<Row>>('admin_list_customers', { p_q: q || undefined, p_status: status || undefined });
   return (
     <Screen
       title="Customers"
@@ -35,10 +35,8 @@ export default function CustomersScreen({ param, go }: ScreenProps) {
       </ul>}
     >
       <Card padded={false}>
-        <div className="p-4 flex flex-col md:flex-row gap-2 md:items-center border-b border-slate-100">
-          <SearchInput value={q} onChange={setQ} placeholder="Name, email or phone…" className="flex-1" />
-          <Chips value={status} onChange={setStatus} options={[{ value: '', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'vip', label: 'VIP' }, { value: 'flagged', label: 'Flagged' }]} />
-        </div>
+        <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search customers by name, email or phone…' }} count={isLoading ? null : total} noun={['customer', 'customers']}
+          filters={[{ key: 'status', label: 'Status', value: status, onChange: setStatus, allLabel: 'All customers', options: [{ value: 'active', label: 'Active' }, { value: 'vip', label: 'VIP' }, { value: 'flagged', label: 'Flagged' }] }]} />
         {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !items.length ? (
           <Empty icon={<Users className="w-5 h-5" />} title="No customers found" />
         ) : (

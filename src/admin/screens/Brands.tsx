@@ -3,7 +3,7 @@ import type { ScreenProps } from '../AdminApp';
 import { Button, Screen, Tabs } from '../ui';
 import { Brands, LogoStrip } from './Catalogue';
 
-export default function BrandsScreen({ go }: ScreenProps) {
+export default function BrandsScreen({ param, go }: ScreenProps) {
   const [tab, setTab] = useState('brands');
   return (
     <Screen
@@ -18,7 +18,7 @@ export default function BrandsScreen({ go }: ScreenProps) {
       actions={<><Button onClick={() => go('categories')}>‹ Categories</Button><Button onClick={() => go('products')}>Next: Products ›</Button></>}
     >
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'brands', label: 'Brands' }, { value: 'strip', label: 'Logo strip on the homepage' }]} />
-      {tab === 'brands' ? <Brands /> : <LogoStrip />}
+      {tab === 'brands' ? <Brands key={param ?? ''} initialQ={param ?? ''} /> : <LogoStrip />}
     </Screen>
   );
 }

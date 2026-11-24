@@ -3,7 +3,7 @@ import { MailPlus, Plus } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, ago } from '../lib';
-import { Badge, Button, Card, Checkbox, ConfirmButton, ErrorState, Field, Loading, Modal, Notice, SampleTag, Screen, Table, Tabs, Td, TextInput, Th, Tr, usePager } from '../ui';
+import { Badge, Button, Card, Checkbox, ConfirmButton, ErrorState, Field, Loading, Modal, Notice, SampleTag, Screen, Table, Tabs, Td, TextInput, Th, Tr, usePager, FilterBar } from '../ui';
 
 interface StaffMember { id: string; fullName: string; email: string; role: string; roleName: string; status: string; hasLogin: boolean; invitePending: boolean; lastSignInAt: string | null; lastActiveAt: string | null; isSample: boolean; isMe: boolean }
 interface Role { code: string; name: string; description: string; permissions: string[] }
@@ -25,7 +25,12 @@ const STATUS: Record<string, { label: string; tone: 'green' | 'amber' | 'grey' |
 export default function StaffScreen(_: ScreenProps) {
   const { hasPermission } = useAuth();
   const { data, isLoading, error, refetch } = useAdminQuery<StaffData>('admin_list_staff');
-  const { pageItems, pager } = usePager(data?.staff, 25);
+  const [q, setQ] = useState('');
+  const [role, setRole] = useState('');
+  const [st, setSt] = useState('');
+  const people = (data?.staff ?? []).filter((s) => (!q.trim() || `${s.fullName} ${s.email}`.toLowerCase().includes(q.trim().toLowerCase())) && (!role || s.role === role)
+    && (!st || (st === 'invited' ? s.invitePending : st === 'nologin' ? !s.hasLogin : s.status === st)));
+  const { pageItems, pager } = usePager(people, 25);
   const [tab, setTab] = useState('people');
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<StaffMember | null>(null);
@@ -44,6 +49,11 @@ export default function StaffScreen(_: ScreenProps) {
       <Tabs value={tab} onChange={setTab} tabs={[{ value: 'people', label: 'People' }, { value: 'roles', label: 'What each role can do' }]} />
       {isLoading ? <Loading /> : error || !data ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : tab === 'people' ? (
         <Card padded={false}>
+          <FilterBar search={{ value: q, onChange: setQ, placeholder: 'Search staff by name or email…' }} count={people.length} noun={['person', 'people']}
+            filters={[
+              { key: 'role', label: 'Role', value: role, onChange: setRole, allLabel: 'All roles', options: data.roles.map((r) => ({ value: r.code, label: r.name })) },
+              { key: 'status', label: 'Status', value: st, onChange: setSt, allLabel: 'Everyone', options: [{ value: 'active', label: 'Working' }, { value: 'on_break', label: 'On a break' }, { value: 'offline', label: 'Off shift' }, { value: 'deactivated', label: 'Deactivated' }, { value: 'invited', label: 'Invitation sent' }, { value: 'nologin', label: 'No login' }] },
+            ]} />
           <Table>
             <thead><tr><Th>Person</Th><Th>Role</Th><Th>Status</Th><Th>Last signed in</Th></tr></thead>
             <tbody>
