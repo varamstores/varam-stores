@@ -140,7 +140,7 @@ const PoDrawer: React.FC<{ po: Po | null; onClose: () => void; onCreated: (p: Po
                 {po && po.status !== 'draft' && <Td className="text-right tabular-nums">{l.received}</Td>}
                 <Td className="text-right">{editable ? <MoneyInput value={l.unitCostMinor} onChange={(v) => setLines(lines.map((x, j) => (j === i ? { ...x, unitCostMinor: v } : x)))} className="w-28 ml-auto" placeholder="auto" /> : pence(l.unitCostMinor)}</Td>
                 <Td className="text-right tabular-nums">{l.unitCostMinor != null && l.quantity ? pence(l.unitCostMinor * l.quantity) : '—'}</Td>
-                {editable && <Td className="text-right"><Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setLines(lines.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button></Td>}
+                {editable && <Td className="text-right"><Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setLines(lines.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button></Td>}
               </tr>
             ))}
           </tbody>

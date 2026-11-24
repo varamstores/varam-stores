@@ -45,7 +45,7 @@ export default function ActivityScreen(_: ScreenProps) {
               <tbody>
                 {rows.map((e) => (
                   <React.Fragment key={e.id}>
-                    <tr className="cursor-pointer hover:bg-amber-50/40" onClick={() => setOpen(open === e.id ? null : e.id)}>
+                    <tr className="cursor-pointer hover:bg-[#F8F0E3]/40" onClick={() => setOpen(open === e.id ? null : e.id)}>
                       <Td className="whitespace-nowrap text-slate-500">{dateTime(e.at)}</Td>
                       <Td>{e.actorType === 'staff' ? e.actor ?? 'Staff' : <Badge>{e.actorType === 'system' ? 'Automatic' : e.actorType === 'customer' ? 'Customer' : e.actorType}</Badge>}</Td>
                       <Td>{human(e.action)}</Td>

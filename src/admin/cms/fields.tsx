@@ -28,20 +28,20 @@ export const kindOf = (s: Schema): string => {
 
 /** What each kind of field is called and how it looks, so words, pictures, buttons and lists are easy to tell apart. */
 export const FIELD_TYPES: Record<string, { name: string; icon: React.ElementType; tone: string }> = {
-  string: { name: 'Words', icon: Type, tone: 'bg-slate-100 text-slate-700' },
-  richtext: { name: 'Paragraphs', icon: AlignLeft, tone: 'bg-slate-100 text-slate-700' },
-  image: { name: 'Picture', icon: ImageIcon, tone: 'bg-sky-100 text-sky-800' },
-  link: { name: 'Button', icon: MousePointerClick, tone: 'bg-amber-100 text-amber-800' },
-  href: { name: 'Link', icon: Link2, tone: 'bg-amber-100 text-amber-800' },
-  list: { name: 'List', icon: List, tone: 'bg-violet-100 text-violet-800' },
-  textlist: { name: 'List of lines', icon: List, tone: 'bg-violet-100 text-violet-800' },
-  icon: { name: 'Icon', icon: Shapes, tone: 'bg-emerald-100 text-emerald-800' },
-  color: { name: 'Colour', icon: Palette, tone: 'bg-pink-100 text-pink-800' },
-  number: { name: 'Number', icon: Hash, tone: 'bg-slate-100 text-slate-700' },
-  boolean: { name: 'On / off', icon: ToggleRight, tone: 'bg-slate-100 text-slate-700' },
-  enum: { name: 'Choice', icon: ListChecks, tone: 'bg-slate-100 text-slate-700' },
-  collection: { name: 'Product shelf', icon: LayoutGrid, tone: 'bg-emerald-100 text-emerald-800' },
-  video: { name: 'Video', icon: Video, tone: 'bg-sky-100 text-sky-800' },
+  string: { name: 'Words', icon: Type, tone: 'bg-[#4B5563] text-white' },
+  richtext: { name: 'Paragraphs', icon: AlignLeft, tone: 'bg-[#2E3440] text-white' },
+  image: { name: 'Picture', icon: ImageIcon, tone: 'bg-[#2B4C7E] text-white' },
+  link: { name: 'Button', icon: MousePointerClick, tone: 'bg-[#9A5B13] text-white' },
+  href: { name: 'Link', icon: Link2, tone: 'bg-[#7A5220] text-white' },
+  list: { name: 'List', icon: List, tone: 'bg-[#743C63] text-white' },
+  textlist: { name: 'List of lines', icon: List, tone: 'bg-[#743C63] text-white' },
+  icon: { name: 'Icon', icon: Shapes, tone: 'bg-[#2F6B4F] text-white' },
+  color: { name: 'Colour', icon: Palette, tone: 'bg-[#8A3D4C] text-white' },
+  number: { name: 'Number', icon: Hash, tone: 'bg-[#3D5A6C] text-white' },
+  boolean: { name: 'On / off', icon: ToggleRight, tone: 'bg-[#3F6656] text-white' },
+  enum: { name: 'Choice', icon: ListChecks, tone: 'bg-[#55496E] text-white' },
+  collection: { name: 'Product shelf', icon: LayoutGrid, tone: 'bg-[#2F6B4F] text-white' },
+  video: { name: 'Video', icon: Video, tone: 'bg-[#2B4C7E] text-white' },
 };
 export const typeOf = (s: Schema) => FIELD_TYPES[kindOf(s)] ?? FIELD_TYPES.string;
 
@@ -108,7 +108,7 @@ export const FieldEditor: React.FC<{ schema: Schema; value: unknown; onChange: (
   if (optional && (k === 'image' || k === 'link') && (value === undefined || value === null)) {
     return <Field label={<Labelled schema={schema} label={label} />} optional help={helpText}><Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => onChange(blankFor(schema))}>{k === 'image' ? 'Add a picture' : 'Add a button'}</Button></Field>;
   }
-  const remove = optional && (k === 'image' || k === 'link') ? <button type="button" className="text-xs text-red-700 underline cursor-pointer ml-2" onClick={() => onChange(undefined)}>remove</button> : null;
+  const remove = optional && (k === 'image' || k === 'link') ? <button type="button" className="text-xs text-[#8A2B2B] underline cursor-pointer ml-2" onClick={() => onChange(undefined)}>remove</button> : null;
   switch (k) {
     case 'image': return <Field label={<><Labelled schema={schema} label={label} />{remove}</>} help={helpText}><ImageSlot value={value as Img} onChange={onChange} /></Field>;
     case 'link': return <Field label={<><Labelled schema={schema} label={label} />{remove}</>} help={helpText}><LinkPicker value={value as Lnk} onChange={onChange} maxLength={schema.properties?.label?.maxLength} /></Field>;
@@ -199,7 +199,7 @@ export const ListEditor: React.FC<{ schema: Schema; value: unknown[]; onChange: 
               <Button size="sm" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="ghost" aria-label="Move down" disabled={i === value.length - 1} onClick={() => move(i, 1)}><ArrowDown className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="ghost" aria-label="Duplicate" disabled={!!max && value.length >= max} onClick={() => { const n = [...value]; n.splice(i + 1, 0, structuredClone(item)); onChange(n); }}><Copy className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="ghost" aria-label="Remove" disabled={value.length <= min} onClick={() => { onChange(value.filter((_, j) => j !== i)); setOpen(null); }}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>
+              <Button size="sm" variant="ghost" aria-label="Remove" disabled={value.length <= min} onClick={() => { onChange(value.filter((_, j) => j !== i)); setOpen(null); }}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>
             </div>
             {open === i && (
               <div className="px-3 pb-3 pt-1 border-t border-slate-100">
@@ -225,7 +225,7 @@ const StringList: React.FC<{ value: string[]; onChange: (v: string[]) => void }>
       <div key={i} className="flex gap-1.5">
         <TextInput value={s} onChange={(v) => onChange(value.map((x, j) => (j === i ? v : x)))} />
         <Button variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => { const n = [...value]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; onChange(n); }}><ArrowUp className="w-3.5 h-3.5" /></Button>
-        <Button variant="ghost" aria-label="Remove" onClick={() => onChange(value.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>
+        <Button variant="ghost" aria-label="Remove" onClick={() => onChange(value.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>
       </div>
     ))}
     <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => onChange([...value, ''])}>Add a line</Button>

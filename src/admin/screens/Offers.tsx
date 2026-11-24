@@ -218,7 +218,7 @@ const OfferForm: React.FC<{ existing: Offer | null; onClose: () => void; onCreat
                   <button type="button" aria-label="Remove" className="cursor-pointer" onClick={() => set('targets', (o.targets ?? []).filter((y) => y.id !== x.id))}><Trash2 className="w-3 h-3" /></button>
                 </span>
               ))}
-              {!(o.targets ?? []).length && <span className="text-sm text-amber-700">Choose at least one.</span>}
+              {!(o.targets ?? []).length && <span className="text-sm text-[#7A4A0F]">Choose at least one.</span>}
             </div>
           </div>
         )}

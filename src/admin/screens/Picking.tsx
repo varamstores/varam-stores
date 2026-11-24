@@ -50,14 +50,14 @@ export default function PickingScreen({ param, go }: ScreenProps) {
               </div>
               <div className="text-sm">{slotText(o.slot)}{o.zone ? ` · ${o.zone}` : ''}</div>
               <div className="text-sm text-slate-600">{o.customer}</div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${o.lineCount ? (o.pickedCount / o.lineCount) * 100 : 0}%` }} /></div>
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-[#2F6B4F]" style={{ width: `${o.lineCount ? (o.pickedCount / o.lineCount) * 100 : 0}%` }} /></div>
               <div className="flex flex-wrap gap-1.5 text-xs text-slate-500">
                 <span>{o.pickedCount} of {o.lineCount} items done</span>
                 {o.hasWeighed && <Badge tone="blue">Weighed items</Badge>}
                 {o.ageCheck && <Badge tone="amber">ID check</Badge>}
                 {o.substitutionDefault === 'dont_allow' && <Badge tone="red">No substitutes</Badge>}
               </div>
-              {o.notes && <div className="text-xs text-amber-800 bg-amber-50 rounded-md px-2 py-1">“{o.notes}”</div>}
+              {o.notes && <div className="text-xs text-[#7A4A0F] bg-[#F8F0E3] rounded-md px-2 py-1">“{o.notes}”</div>}
             </button>
           ))}
         </div>
@@ -147,19 +147,19 @@ const PickLine: React.FC<{ line: Line; subs: Line[]; editable: boolean; busy: bo
   const [grams, setGrams] = useState<number | null>(line.weightPickedGrams ?? null);
   const status = line.status;
   return (
-    <div className={cx('bg-white rounded-xl border p-3 sm:p-4', status === 'pending' ? 'border-[#E2E8F0]' : status === 'picked' ? 'border-emerald-300' : 'border-amber-300')}>
+    <div className={cx('bg-white rounded-xl border p-3 sm:p-4', status === 'pending' ? 'border-[#E2E8F0]' : status === 'picked' ? 'border-[#BFD8CA]' : 'border-[#E3CBA6]')}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="font-semibold">{line.name}</div>
           <div className="text-xs text-slate-500">{line.sku}{line.packSize ? ` · ${line.packSize}` : ''} · {money(line.unitPrice)}{weighed ? ' per kg' : ' each'}</div>
           <div className="text-sm mt-1">Wanted: <b>{weighed ? formatWeight(line.weightOrderedGrams) : `${line.quantityOrdered}`}</b>{status !== 'pending' && <> · Result: <b>{status === 'substituted' ? 'replaced' : lineAmount(line)}</b></>}</div>
-          {!line.substitutionAllowed && <div className="text-xs text-red-700 mt-0.5">No substitute allowed for this item</div>}
+          {!line.substitutionAllowed && <div className="text-xs text-[#8A2B2B] mt-0.5">No substitute allowed for this item</div>}
         </div>
         <Badge tone={status === 'pending' ? 'grey' : status === 'picked' ? 'green' : status === 'substituted' ? 'violet' : 'amber'}>
           {status === 'pending' ? 'To pick' : status === 'picked' ? 'Picked' : status === 'short' ? 'Short' : status === 'missing' ? 'Missing' : 'Replaced'}
         </Badge>
       </div>
-      {subs.map((s) => <div key={s.id} className="mt-2 text-sm bg-indigo-50 rounded-md px-2 py-1">↳ Replaced with <b>{s.name}</b> ({lineAmount(s)}) · {money(s.finalGross ?? s.estGross)}</div>)}
+      {subs.map((s) => <div key={s.id} className="mt-2 text-sm bg-[#F0E6EE] rounded-md px-2 py-1">↳ Replaced with <b>{s.name}</b> ({lineAmount(s)}) · {money(s.finalGross ?? s.estGross)}</div>)}
       {editable && (
         <div className="mt-3 flex flex-wrap items-end gap-2">
           {weighed ? (

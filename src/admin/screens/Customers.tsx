@@ -118,7 +118,7 @@ const CustomerPanel: React.FC<{ id: string; onClose: () => void; go: ScreenProps
               {c.loyalty ? (
                 <>
                   <div className="flex gap-6 mb-3"><div><div className="text-xs text-slate-500">Balance</div><div className="text-2xl font-bold">{c.loyalty.balance}</div></div><div><div className="text-xs text-slate-500">Earned ever</div><div className="text-2xl font-bold">{c.loyalty.lifetime}</div></div>{c.tier && <div><div className="text-xs text-slate-500">Tier</div><div className="text-2xl font-bold">{c.tier}</div></div>}</div>
-                  <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">{c.loyalty.history.map((h, i) => <li key={i} className="flex justify-between gap-2"><span className="truncate">{h.note ?? h.reason.replace(/_/g, ' ')} <span className="text-xs text-slate-400">{date(h.at)}</span></span><span className={`tabular-nums font-semibold ${h.points < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{h.points > 0 ? '+' : ''}{h.points}</span></li>)}</ul>
+                  <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">{c.loyalty.history.map((h, i) => <li key={i} className="flex justify-between gap-2"><span className="truncate">{h.note ?? h.reason.replace(/_/g, ' ')} <span className="text-xs text-slate-400">{date(h.at)}</span></span><span className={`tabular-nums font-semibold ${h.points < 0 ? 'text-[#8A2B2B]' : 'text-[#245740]'}`}>{h.points > 0 ? '+' : ''}{h.points}</span></li>)}</ul>
                 </>
               ) : <p className="text-sm text-slate-500">No points yet.</p>}
             </Card>
@@ -135,7 +135,7 @@ const CustomerPanel: React.FC<{ id: string; onClose: () => void; go: ScreenProps
                 {!c.messages.length ? <p className="text-sm text-slate-500">None.</p> : <ul className="text-sm space-y-1">{c.messages.map((m, i) => <li key={i} className="flex justify-between gap-2"><span className="truncate">{m.subject ?? m.template}</span><span className="text-xs text-slate-500 whitespace-nowrap">{dateTime(m.createdAt)}</span></li>)}</ul>}
               </Card>
               <Card title="Reviews">
-                {!c.reviews.length ? <p className="text-sm text-slate-500">None.</p> : <ul className="text-sm space-y-2">{c.reviews.map((r) => <li key={r.id}><span className="text-amber-500">{'★'.repeat(r.rating)}</span> <Badge>{r.status}</Badge><div className="text-slate-600 line-clamp-2">{r.body}</div></li>)}</ul>}
+                {!c.reviews.length ? <p className="text-sm text-slate-500">None.</p> : <ul className="text-sm space-y-2">{c.reviews.map((r) => <li key={r.id}><span className="text-[#B0701E]">{'★'.repeat(r.rating)}</span> <Badge>{r.status}</Badge><div className="text-slate-600 line-clamp-2">{r.body}</div></li>)}</ul>}
               </Card>
             </div>
           )}

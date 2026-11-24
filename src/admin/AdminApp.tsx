@@ -184,15 +184,15 @@ export default function AdminApp() {
   const ScreenComponent = current?.screen;
 
   const initials = staff.fullName.split(/s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-  const statusDot = staff.status === 'active' ? 'bg-emerald-400' : staff.status === 'on_break' ? 'bg-amber-400' : 'bg-slate-500';
+  const statusDot = staff.status === 'active' ? 'bg-[#5E9C7E]' : staff.status === 'on_break' ? 'bg-[#C98A3A]' : 'bg-slate-500';
   const sidebar = (
     <nav className="flex flex-col h-full" aria-label="Store portal">
       <div className="px-5 pt-5 pb-4 flex items-center justify-between"><Logo /><button type="button" className="lg:hidden p-1 cursor-pointer" aria-label="Close menu" onClick={() => setMenuOpen(false)}><X className="w-5 h-5" /></button></div>
       <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
         {groups.map((g) => (
           <div key={g}>
-            <div className="flex items-center gap-2 px-2.5 pb-1.5 text-[12px] font-medium text-[#9AA3AF]">
-              <span className={cx('w-1.5 h-1.5 rounded-full', AREA[g as AreaName].dot)} />{g}
+            <div className="flex items-center gap-2 px-2.5 pb-1.5 text-[12.5px] font-semibold text-[#E5E7EB]">
+              <span className={cx('w-1 h-3.5 rounded-full', AREA[g as AreaName].dot)} />{g}
             </div>
             <div className="space-y-0.5">
               {allowed.filter((n) => n.group === g).map((n) => {
@@ -202,7 +202,7 @@ export default function AdminApp() {
                   <button key={n.key} type="button" onClick={() => go(n.key)} aria-current={active ? 'page' : undefined}
                     className={cx('w-full flex items-center gap-3 px-2.5 h-9 rounded-lg text-[14px] text-left cursor-pointer transition-colors',
                       active ? 'bg-[#F5D103] text-[#18181B] font-semibold' : 'text-[#D4D8DE] hover:bg-white/[0.07] hover:text-white')}>
-                    <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />{n.label}
+                    <Icon className={cx('w-[18px] h-[18px] shrink-0', !active && AREA[n.group as AreaName].icon)} strokeWidth={1.9} />{n.label}
                   </button>
                 );
               })}
@@ -239,7 +239,7 @@ export default function AdminApp() {
   const area = current ? (current.group as AreaName) : null;
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] text-[#18181B] font-sans antialiased">
+    <div className="min-h-screen bg-[#EDEFF2] text-[#18181B] font-sans antialiased">
       <aside className="hidden lg:block fixed inset-y-0 left-0 w-[260px] bg-[#18181B] text-white z-30">{sidebar}</aside>
       {menuOpen && (
         <div className="lg:hidden fixed inset-0 z-[70]">

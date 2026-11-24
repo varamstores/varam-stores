@@ -31,7 +31,7 @@ function greeting(): string {
 /** A big tile for today's work: the number, what it means, and where pressing it goes. */
 const WorkTile: React.FC<{ icon: React.ElementType; count: number; label: string; action: string; onClick: () => void; tone: 'amber' | 'violet' | 'sky' | 'red' }> = ({ icon: Icon, count, label, action, onClick, tone }) => {
   const idle = count === 0;
-  const tones = { amber: 'bg-amber-100 text-amber-800', violet: 'bg-violet-100 text-violet-800', sky: 'bg-sky-100 text-sky-800', red: 'bg-red-100 text-red-700' };
+  const tones = { amber: 'bg-[#9A5B13] text-white', violet: 'bg-[#743C63] text-white', sky: 'bg-[#2B4C7E] text-white', red: 'bg-[#A63A3A] text-white' };
   return (
     <button type="button" onClick={onClick} className={cx('group text-left rounded-xl border p-4 sm:p-5 cursor-pointer transition-colors', idle ? 'bg-white border-[#E4E7EC] hover:border-[#9AA3AF]' : 'bg-white border-[#18181B] hover:bg-[#FFFCEB]')}>
       <div className="flex items-center justify-between">
@@ -90,7 +90,7 @@ export default function DashboardScreen({ go }: ScreenProps) {
           <div className="grid xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-4">
             <Card title="Needs attention" description={todo.length ? 'Press a line to go straight there.' : undefined} padded={!todo.length}>
               {todo.length === 0 ? (
-                <div className="flex items-center gap-2.5 text-[14px] text-emerald-800"><CheckCircle2 className="w-5 h-5 text-emerald-600" />All clear — nothing needs fixing.</div>
+                <div className="flex items-center gap-2.5 text-[14px] text-[#245740]"><CheckCircle2 className="w-5 h-5 text-[#2F6B4F]" />All clear — nothing needs fixing.</div>
               ) : (
                 <ul>
                   {todo.map((t) => {
@@ -98,7 +98,7 @@ export default function DashboardScreen({ go }: ScreenProps) {
                     return (
                       <li key={t.text} className="border-b border-[#F0F2F5] last:border-0">
                         <button type="button" onClick={() => go(...t.to)} className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[#FFFCEB] cursor-pointer group">
-                          <span className={cx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', t.tone === 'red' ? 'bg-red-50 text-red-600' : t.tone === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-[#F1F3F5] text-[#5F6B7A]')}><Icon className="w-4 h-4" /></span>
+                          <span className={cx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', t.tone === 'red' ? 'bg-[#F6E6E4] text-[#A63A3A]' : t.tone === 'amber' ? 'bg-[#F6ECDD] text-[#9A5B13]' : 'bg-[#ECEEF1] text-[#4B5563]')}><Icon className="w-4 h-4" /></span>
                           <span className="flex-1 text-[14px]"><b className="tabular-nums">{t.count}</b> {t.text}</span>
                           <span className="text-[20px] leading-none text-[#C3C9D2] group-hover:text-[#18181B]">›</span>
                         </button>

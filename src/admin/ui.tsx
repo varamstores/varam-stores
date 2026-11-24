@@ -15,12 +15,13 @@ export const cx = (...c: Array<string | false | null | undefined>) => c.filter(B
 
 // ── areas ───────────────────────────────────────────────────────────────────────────────────────
 export type AreaName = 'Today' | 'Shop' | 'Customers' | 'Marketing' | 'Set-up';
-export const AREA: Record<AreaName, { tile: string; text: string; dot: string; bar: string; blurb: string }> = {
-  Today: { tile: 'bg-amber-100 text-amber-800', text: 'text-amber-800', dot: 'bg-amber-400', bar: 'bg-amber-400', blurb: 'Orders coming in and going out' },
-  Shop: { tile: 'bg-emerald-100 text-emerald-800', text: 'text-emerald-800', dot: 'bg-emerald-500', bar: 'bg-emerald-500', blurb: 'What you sell and what is in stock' },
-  Customers: { tile: 'bg-sky-100 text-sky-800', text: 'text-sky-800', dot: 'bg-sky-500', bar: 'bg-sky-500', blurb: 'People who shop with you' },
-  Marketing: { tile: 'bg-violet-100 text-violet-800', text: 'text-violet-800', dot: 'bg-violet-500', bar: 'bg-violet-500', blurb: 'Offers, points and the website' },
-  'Set-up': { tile: 'bg-slate-200 text-slate-700', text: 'text-slate-700', dot: 'bg-slate-400', bar: 'bg-slate-400', blurb: 'How the shop runs' },
+// Deep, muted colours (no neon): ochre, forest, navy, plum, graphite.
+export const AREA: Record<AreaName, { tile: string; text: string; dot: string; bar: string; icon: string; blurb: string }> = {
+  Today: { tile: 'bg-[#9A5B13] text-white', text: 'text-[#9A5B13]', dot: 'bg-[#C98A3A]', bar: 'bg-[#9A5B13]', icon: 'text-[#D9A35E]', blurb: 'Orders coming in and going out' },
+  Shop: { tile: 'bg-[#2F6B4F] text-white', text: 'text-[#2F6B4F]', dot: 'bg-[#5E9C7E]', bar: 'bg-[#2F6B4F]', icon: 'text-[#7FB69A]', blurb: 'What you sell and what is in stock' },
+  Customers: { tile: 'bg-[#2B4C7E] text-white', text: 'text-[#2B4C7E]', dot: 'bg-[#6A8BBF]', bar: 'bg-[#2B4C7E]', icon: 'text-[#8EA9D4]', blurb: 'People who shop with you' },
+  Marketing: { tile: 'bg-[#743C63] text-white', text: 'text-[#743C63]', dot: 'bg-[#A8739A]', bar: 'bg-[#743C63]', icon: 'text-[#C495B6]', blurb: 'Offers, points and the website' },
+  'Set-up': { tile: 'bg-[#4B5563] text-white', text: 'text-[#4B5563]', dot: 'bg-[#8B95A3]', bar: 'bg-[#4B5563]', icon: 'text-[#A3ACB8]', blurb: 'How the shop runs' },
 };
 interface AreaInfo { area: AreaName; icon: React.ElementType; label: string }
 export const AreaContext = createContext<AreaInfo | null>(null);
@@ -31,9 +32,9 @@ type ButtonVariant = 'primary' | 'dark' | 'outline' | 'ghost' | 'danger';
 const BTN: Record<ButtonVariant, string> = {
   primary: 'bg-[#F5D103] text-[#18181B] hover:bg-[#FFDE21] border border-[#D9B800] shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)]',
   dark: 'bg-[#18181B] text-white hover:bg-[#2A2A2E] border border-[#18181B]',
-  outline: 'bg-white text-[#18181B] hover:bg-[#F6F7F9] border border-[#D9DDE3]',
+  outline: 'bg-white text-[#18181B] hover:bg-[#F3F4F6] border border-[#C4CAD3] shadow-[0_1px_0_rgba(16,24,40,0.05)]',
   ghost: 'bg-transparent text-[#3F4652] hover:bg-[#EEF0F3] border border-transparent',
-  danger: 'bg-white text-red-700 hover:bg-red-50 border border-red-200',
+  danger: 'bg-white text-[#9B2C2C] hover:bg-[#F8ECEA] border border-[#E2BDB8]',
 };
 
 export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -106,19 +107,19 @@ export const Screen: React.FC<{
 
 /** "How this works": each list item becomes a small card; numbered when it is a sequence (<ol>). */
 const GuidePanel: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => (
-  <section aria-label="How this works" className="rounded-xl bg-[#FFFBE6] border border-[#F3E3A1] px-4 sm:px-5 py-4">
+  <section aria-label="How this works" className="rounded-xl bg-[#1F2024] px-4 sm:px-5 py-4">
     <div className="flex items-center gap-2 mb-3">
-      <Lightbulb className="w-4 h-4 text-[#A16207]" />
-      <h2 className="text-sm font-semibold text-[#713F12]">How this works</h2>
-      <button type="button" onClick={onClose} className="ml-auto text-[13px] font-medium text-[#854D0E] hover:underline cursor-pointer">Hide</button>
+      <Lightbulb className="w-4 h-4 text-[#F5D103]" />
+      <h2 className="text-sm font-semibold text-white">How this works</h2>
+      <button type="button" onClick={onClose} className="ml-auto text-[13px] font-medium text-[#B5BCC6] hover:text-white hover:underline cursor-pointer">Hide</button>
     </div>
     <div className={cx(
-      'text-[13.5px] leading-snug text-[#3B3320] [&_b]:font-semibold',
+      'text-[13.5px] leading-snug text-[#C9CED6] [&_b]:font-semibold [&_b]:text-white',
       '[&_ol]:grid [&_ol]:gap-2.5 [&_ol]:sm:grid-cols-2 [&_ol]:xl:grid-cols-4 [&_ol]:[counter-reset:step]',
       '[&_ul]:grid [&_ul]:gap-2.5 [&_ul]:sm:grid-cols-2 [&_ul]:xl:grid-cols-4',
-      '[&_li]:bg-white [&_li]:rounded-lg [&_li]:border [&_li]:border-[#F1E6B8] [&_li]:px-3 [&_li]:py-2.5',
+      '[&_li]:bg-white/[0.05] [&_li]:rounded-lg [&_li]:border [&_li]:border-white/10 [&_li]:px-3 [&_li]:py-2.5',
       '[&_ol>li]:[counter-increment:step] [&_ol>li]:before:content-[counter(step)] [&_ol>li]:before:inline-flex [&_ol>li]:before:items-center [&_ol>li]:before:justify-center',
-      '[&_ol>li]:before:w-5 [&_ol>li]:before:h-5 [&_ol>li]:before:rounded-full [&_ol>li]:before:bg-[#18181B] [&_ol>li]:before:text-[#F5D103] [&_ol>li]:before:text-[11px] [&_ol>li]:before:font-bold [&_ol>li]:before:mr-2 [&_ol>li]:before:align-[1px]',
+      '[&_ol>li]:before:w-5 [&_ol>li]:before:h-5 [&_ol>li]:before:rounded-full [&_ol>li]:before:bg-[#F5D103] [&_ol>li]:before:text-[#18181B] [&_ol>li]:before:text-[11px] [&_ol>li]:before:font-bold [&_ol>li]:before:mr-2 [&_ol>li]:before:align-[1px]',
       '[&_p]:max-w-3xl',
     )}>{children}</div>
   </section>
@@ -134,9 +135,9 @@ export const Guide: React.FC<{ id: string; children: React.ReactNode }> = ({ id,
 export const Card: React.FC<{ title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode; className?: string; padded?: boolean }> = ({
   title, description, actions, children, className, padded = true,
 }) => (
-  <section className={cx('bg-white rounded-xl border border-[#E4E7EC]', className)}>
+  <section className={cx('bg-white rounded-xl border border-[#D6DBE1] shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
     {(title || actions) && (
-      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 border-b border-[#EEF0F3]">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 bg-[#F6F7F9] border-b border-[#E2E6EB] rounded-t-xl">
         <div className="min-w-0">
           {title && <h2 className="font-semibold text-[15px] text-[#18181B]">{title}</h2>}
           {description && <p className="text-[13px] text-[#5F6B7A] mt-0.5">{description}</p>}
@@ -153,26 +154,26 @@ export const Stat: React.FC<{ label: string; value: React.ReactNode; hint?: Reac
   const body = (
     <>
       <div className="text-[13px] text-[#5F6B7A]">{label}</div>
-      <div className={cx('text-[28px] leading-none font-semibold mt-2 tabular-nums tracking-tight', tone === 'red' && 'text-red-600', tone === 'amber' && 'text-amber-600', tone === 'green' && 'text-emerald-700')}>{value}</div>
+      <div className={cx('text-[28px] leading-none font-semibold mt-2 tabular-nums tracking-tight', tone === 'red' && 'text-[#A63A3A]', tone === 'amber' && 'text-[#9A5B13]', tone === 'green' && 'text-[#2F6B4F]')}>{value}</div>
       {hint && <div className="text-[12.5px] text-[#5F6B7A] mt-2">{hint}</div>}
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className="group text-left bg-white rounded-xl border border-[#E4E7EC] p-4 w-full hover:border-[#18181B] cursor-pointer relative">
+    <button type="button" onClick={onClick} className="group text-left bg-white rounded-xl border border-[#D6DBE1] p-4 w-full hover:border-[#18181B] cursor-pointer relative">
       {body}<ChevronRight className="w-4 h-4 absolute top-4 right-3 text-[#C3C9D2] group-hover:text-[#18181B]" />
     </button>
-  ) : <div className="bg-white rounded-xl border border-[#E4E7EC] p-4">{body}</div>;
+  ) : <div className="bg-white rounded-xl border border-[#D6DBE1] p-4">{body}</div>;
 };
 
 // ── badges ──────────────────────────────────────────────────────────────────────────────────────
 const TONE: Record<Tone, { box: string; dot: string }> = {
-  grey: { box: 'bg-[#F1F3F5] text-[#4A5361]', dot: 'bg-[#9AA3AF]' },
-  blue: { box: 'bg-sky-50 text-sky-800', dot: 'bg-sky-500' },
-  green: { box: 'bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
-  amber: { box: 'bg-amber-50 text-amber-800', dot: 'bg-amber-500' },
-  red: { box: 'bg-red-50 text-red-700', dot: 'bg-red-500' },
-  violet: { box: 'bg-indigo-50 text-indigo-800', dot: 'bg-indigo-500' },
-  yellow: { box: 'bg-[#FEF7C3] text-[#6B4A06]', dot: 'bg-[#E5B800]' },
+  grey: { box: 'bg-[#ECEEF1] text-[#3F4652] ring-1 ring-inset ring-[#D3D8DF]', dot: 'bg-[#8B95A3]' },
+  blue: { box: 'bg-[#E6ECF5] text-[#223E68] ring-1 ring-inset ring-[#C3D0E4]', dot: 'bg-[#2B4C7E]' },
+  green: { box: 'bg-[#E5F0EA] text-[#245740] ring-1 ring-inset ring-[#BFD8CA]', dot: 'bg-[#2F6B4F]' },
+  amber: { box: 'bg-[#F6ECDD] text-[#7A4A0F] ring-1 ring-inset ring-[#E3CBA6]', dot: 'bg-[#B0701E]' },
+  red: { box: 'bg-[#F6E6E4] text-[#8A2B2B] ring-1 ring-inset ring-[#E5C2BD]', dot: 'bg-[#A63A3A]' },
+  violet: { box: 'bg-[#F0E6EE] text-[#5E3050] ring-1 ring-inset ring-[#DCC4D5]', dot: 'bg-[#743C63]' },
+  yellow: { box: 'bg-[#FBF1C7] text-[#5C4300] ring-1 ring-inset ring-[#E8D68A]', dot: 'bg-[#B8960A]' },
 };
 /** A short status word with a coloured dot. */
 export const Badge: React.FC<{ tone?: Tone; children: React.ReactNode; title?: string }> = ({ tone = 'grey', children, title }) => (
@@ -199,7 +200,7 @@ export const Field: React.FC<{ label: React.ReactNode; help?: React.ReactNode; e
       {label}{optional && <span className="font-normal text-[#7A8594]"> · optional</span>}
     </span>
     {children}
-    {error ? <span className="block text-[12.5px] text-red-600 mt-1.5">{error}</span> : help ? <span className="block text-[12.5px] text-[#5F6B7A] mt-1.5">{help}</span> : null}
+    {error ? <span className="block text-[12.5px] text-[#A63A3A] mt-1.5">{error}</span> : help ? <span className="block text-[12.5px] text-[#5F6B7A] mt-1.5">{help}</span> : null}
   </label>
 );
 
@@ -314,7 +315,7 @@ export const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cx('relative mt-0.5 w-10 h-6 rounded-full shrink-0 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5D103]',
-          checked ? 'bg-emerald-600' : 'bg-[#C3C9D2]')}
+          checked ? 'bg-[#2F6B4F]' : 'bg-[#C3C9D2]')}
       >
         <span className={cx('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform', checked && 'translate-x-4')} />
       </button>
@@ -371,7 +372,7 @@ export const Chips: React.FC<{ value: string; onChange: (v: string) => void; opt
         aria-checked={value === o.value}
         onClick={() => onChange(o.value)}
         className={cx('h-8 px-3 rounded-lg border text-[13px] font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5',
-          value === o.value ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#3F4652] border-[#D9DDE3] hover:border-[#9AA3AF]')}
+          value === o.value ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#3F4652] border-[#C4CAD3] hover:border-[#18181B]')}
       >
         {o.label}{o.count != null && <span className={cx('tabular-nums text-[12px]', value === o.value ? 'text-[#F5D103]' : 'text-[#7A8594]')}>{o.count}</span>}
       </button>
@@ -400,14 +401,14 @@ export const Tabs: React.FC<{ value: string; onChange: (v: string) => void; tabs
 // ── tables & states ─────────────────────────────────────────────────────────────────────────────
 export const Table: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
   <div className={cx('overflow-x-auto', className)}>
-    <table className="w-full text-[14px] border-collapse">{children}</table>
+    <table className="w-full text-[14px] border-collapse [&>tbody>tr:nth-child(even)]:bg-[#FAFBFC]">{children}</table>
   </div>
 );
 export const Th: React.FC<React.ThHTMLAttributes<HTMLTableCellElement>> = ({ className, ...rest }) => (
-  <th {...rest} className={cx('text-left text-[12.5px] font-medium text-[#5F6B7A] px-4 py-2.5 border-b border-[#E4E7EC] bg-[#FAFBFC] whitespace-nowrap', className)} />
+  <th {...rest} className={cx('text-left text-[12.5px] font-semibold text-[#3F4652] px-4 py-2.5 border-b border-[#D6DBE1] bg-[#F1F3F5] whitespace-nowrap', className)} />
 );
 export const Td: React.FC<React.TdHTMLAttributes<HTMLTableCellElement>> = ({ className, ...rest }) => (
-  <td {...rest} className={cx('px-4 py-3 border-b border-[#F0F2F5] align-middle', className)} />
+  <td {...rest} className={cx('px-4 py-3 border-b border-[#E8EBEF] align-middle', className)} />
 );
 /** A table row. Clickable rows highlight and show an arrow, so it is clear they open something. */
 export const Tr: React.FC<React.HTMLAttributes<HTMLTableRowElement> & { onClick?: () => void }> = ({ className, onClick, children, ...rest }) => (
@@ -444,15 +445,15 @@ export const Empty: React.FC<{ icon?: React.ReactNode; title: string; text?: Rea
 
 export const Notice: React.FC<{ tone?: 'info' | 'warning' | 'success' | 'danger'; children: React.ReactNode; action?: React.ReactNode }> = ({ tone = 'info', children, action }) => {
   const styles = {
-    info: 'bg-sky-50 border-sky-200 text-sky-950',
-    warning: 'bg-amber-50 border-amber-200 text-amber-950',
-    success: 'bg-emerald-50 border-emerald-200 text-emerald-950',
-    danger: 'bg-red-50 border-red-200 text-red-950',
+    info: 'bg-[#EEF2F8] border-[#C9D4E6] border-l-[#2B4C7E] text-[#1C2F4D]',
+    warning: 'bg-[#F8F0E3] border-[#E6D2B0] border-l-[#9A5B13] text-[#4A3009]',
+    success: 'bg-[#EAF3EE] border-[#C5DCCF] border-l-[#2F6B4F] text-[#1E4231]',
+    danger: 'bg-[#F8EBEA] border-[#E7C6C2] border-l-[#A63A3A] text-[#5C1F1F]',
   }[tone];
-  const iconTone = { info: 'text-sky-600', warning: 'text-amber-600', success: 'text-emerald-600', danger: 'text-red-600' }[tone];
+  const iconTone = { info: 'text-[#2B4C7E]', warning: 'text-[#9A5B13]', success: 'text-[#2F6B4F]', danger: 'text-[#A63A3A]' }[tone];
   const Icon = tone === 'success' ? CheckCircle2 : tone === 'info' ? Info : AlertTriangle;
   return (
-    <div className={cx('flex flex-wrap sm:flex-nowrap items-start gap-2.5 rounded-xl border px-4 py-3 text-[14px]', styles)}>
+    <div className={cx('flex flex-wrap sm:flex-nowrap items-start gap-2.5 rounded-xl border border-l-4 px-4 py-3 text-[14px]', styles)}>
       <Icon className={cx('w-4 h-4 mt-0.5 shrink-0', iconTone)} />
       <div className="flex-1 min-w-0">{children}</div>
       {action && <div className="shrink-0">{action}</div>}
@@ -494,8 +495,8 @@ export const Drawer: React.FC<{ open: boolean; onClose: () => void; title: React
   return createPortal(
     <div className="fixed inset-0 z-[80] flex justify-end">
       <div className="absolute inset-0 bg-[#0F1115]/45" onClick={onClose} />
-      <div role="dialog" aria-modal="true" className={cx('relative bg-[#F6F7F9] w-full h-full flex flex-col shadow-2xl', full ? 'sm:max-w-[min(1500px,96vw)]' : wide ? 'sm:max-w-4xl' : 'sm:max-w-2xl')}>
-        {info && <div className={cx('h-1 shrink-0', AREA[info.area].bar)} />}
+      <div role="dialog" aria-modal="true" className={cx('relative bg-[#EDEFF2] w-full h-full flex flex-col shadow-2xl', full ? 'sm:max-w-[min(1500px,96vw)]' : wide ? 'sm:max-w-4xl' : 'sm:max-w-2xl')}>
+        {info && <div className={cx('h-1.5 shrink-0', AREA[info.area].bar)} />}
         <header className="flex items-start gap-3 px-4 sm:px-6 py-4 bg-white border-b border-[#E4E7EC]">
           <div className="min-w-0 flex-1">
             <h2 className="font-semibold text-[19px] leading-tight">{title}</h2>
@@ -554,7 +555,7 @@ export const ConfirmButton: React.FC<{
         title={title}
         footer={<>
           <Button variant="ghost" onClick={() => setOpen(false)}>Go back</Button>
-          <Button variant={danger ? 'dark' : 'primary'} className={danger ? '!bg-red-600 !border-red-600 hover:!bg-red-700' : ''} loading={busy} disabled={!!reason && !why.trim()} onClick={go}>{confirmLabel}</Button>
+          <Button variant={danger ? 'dark' : 'primary'} className={danger ? '!bg-[#A63A3A] !border-[#A63A3A] hover:!bg-[#8A2B2B]' : ''} loading={busy} disabled={!!reason && !why.trim()} onClick={go}>{confirmLabel}</Button>
         </>}
       >
         <div className="text-[14px] text-[#3F4652]">{text}</div>
@@ -572,7 +573,7 @@ export const Toaster: React.FC = () => {
     <div aria-live="polite" className="fixed z-[100] bottom-4 right-4 left-4 sm:left-auto flex flex-col gap-2 sm:w-96 pointer-events-none">
       {items.map((t) => (
         <div key={t.id} role="status" className={cx('pointer-events-auto flex items-start gap-2.5 rounded-xl px-4 py-3 shadow-xl text-[14px] border',
-          t.kind === 'error' ? 'bg-red-600 text-white border-red-700' : 'bg-[#18181B] text-white border-black')}>
+          t.kind === 'error' ? 'bg-[#A63A3A] text-white border-[#8A2B2B]' : 'bg-[#18181B] text-white border-black')}>
           {t.kind === 'error' ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> : <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-[#F5D103]" />}
           <span className="flex-1">{t.text}</span>
           <button type="button" aria-label="Dismiss" onClick={() => dismiss(t.id)} className="opacity-70 hover:opacity-100 cursor-pointer"><X className="w-4 h-4" /></button>

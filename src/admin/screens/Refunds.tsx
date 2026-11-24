@@ -47,7 +47,7 @@ export default function RefundsScreen({ go }: ScreenProps) {
                 <Tr key={r.id}>
                   <Td><button type="button" className="font-semibold hover:underline cursor-pointer" onClick={() => setOpen(r.orderId)}>{r.orderNumber}</button><div className="text-xs text-slate-500">{r.customer}</div></Td>
                   <Td className="whitespace-nowrap font-semibold tabular-nums">{r.amount ? money(r.amount) : 'Chosen items'}{r.lines?.length ? <div className="text-xs font-normal text-slate-500">{r.lines.map((l) => l.name).join(', ')}</div> : null}</Td>
-                  <Td className="max-w-xs">{r.reason}{r.error && <div className="text-xs text-red-700 mt-0.5">{r.error}</div>}</Td>
+                  <Td className="max-w-xs">{r.reason}{r.error && <div className="text-xs text-[#8A2B2B] mt-0.5">{r.error}</div>}</Td>
                   <Td className="text-slate-600 whitespace-nowrap">{r.requestedBy ?? '—'}<div className="text-xs text-slate-400">{dateTime(r.createdAt)}</div></Td>
                   <Td><Badge tone={TONES[r.status as keyof typeof TONES] ?? 'grey'}>{WORDS[r.status] ?? r.status}</Badge></Td>
                   <Td className="text-right whitespace-nowrap">

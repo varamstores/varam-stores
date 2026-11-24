@@ -79,7 +79,7 @@ export const StockHistory: React.FC<{ productId: string }> = ({ productId }) => 
           <tr key={i}>
             <Td className="whitespace-nowrap text-slate-500">{dateTime(m.at)}</Td>
             <Td>{MOVE_WORDS[m.reason] ?? m.reason.replace(/_/g, ' ')}{m.order && <span className="text-slate-500"> · {m.order}</span>}{m.affects === 'reserved' && <Badge tone="grey">held</Badge>}{m.note && <div className="text-xs text-slate-500">{m.note}</div>}</Td>
-            <Td className={`text-right tabular-nums font-semibold ${m.delta < 0 ? 'text-red-700' : 'text-emerald-700'}`}>{m.delta > 0 ? '+' : ''}{m.delta}</Td>
+            <Td className={`text-right tabular-nums font-semibold ${m.delta < 0 ? 'text-[#8A2B2B]' : 'text-[#245740]'}`}>{m.delta > 0 ? '+' : ''}{m.delta}</Td>
             <Td className="text-slate-500">{m.by ?? 'automatic'}</Td>
           </tr>
         ))}

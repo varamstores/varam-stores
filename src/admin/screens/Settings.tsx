@@ -133,7 +133,7 @@ const CompanyTab: React.FC = () => {
                 <Td><div className="font-medium">{r.categoryName}</div>{r.note && <div className="text-xs text-slate-500">{r.note}</div>}</Td>
                 <Td className="text-right tabular-nums">{r.rateBp / 100}%</Td>
                 <Td className="text-slate-500">{new Date(r.validFrom).getFullYear()}{r.validTo ? ` – ${new Date(r.validTo).getFullYear()}` : ''}</Td>
-                <Td>{r.confirmedAt ? <span className="inline-flex items-center gap-1 text-emerald-700 text-sm"><CheckCircle2 className="w-4 h-4" />{r.confirmedBy}, {dateTime(r.confirmedAt)}</span>
+                <Td>{r.confirmedAt ? <span className="inline-flex items-center gap-1 text-[#245740] text-sm"><CheckCircle2 className="w-4 h-4" />{r.confirmedBy}, {dateTime(r.confirmedAt)}</span>
                   : <span className="flex items-center gap-2"><Badge tone="amber">Not checked</Badge><Button size="sm" loading={busy} onClick={() => void run('admin_confirm_tax_rate', { p_id: r.id }, { success: 'Confirmed', refresh: ['admin_get_company'] })}>Confirm</Button></span>}</Td>
               </tr>
             ))}

@@ -110,7 +110,7 @@ const Outbox: React.FC<{ initial: string }> = ({ initial }) => {
                 <Tr key={m.id} onClick={() => setOpen(m)}>
                   <Td className="max-w-[14rem] truncate">{m.to}</Td>
                   <Td className="max-w-sm"><div className="truncate">{m.subject ?? m.template}</div>{m.order && <div className="text-xs text-slate-500">Order {m.order}</div>}</Td>
-                  <Td><Badge tone={STATUS_TONE[m.status as keyof typeof STATUS_TONE] ?? 'grey'}>{STATUS_WORD[m.status] ?? m.status}</Badge>{m.error && <div className="text-xs text-red-700 mt-0.5 max-w-xs truncate">{m.error}</div>}</Td>
+                  <Td><Badge tone={STATUS_TONE[m.status as keyof typeof STATUS_TONE] ?? 'grey'}>{STATUS_WORD[m.status] ?? m.status}</Badge>{m.error && <div className="text-xs text-[#8A2B2B] mt-0.5 max-w-xs truncate">{m.error}</div>}</Td>
                   <Td className="text-xs text-slate-500 whitespace-nowrap">{dateTime(m.sentAt ?? m.createdAt)}</Td>
                   <Td className="text-right">{m.status === 'failed' && <Button size="sm" icon={<RotateCw className="w-3.5 h-3.5" />} disabled={busy} onClick={(e) => { e.stopPropagation(); void run('admin_retry_message', { p_id: m.id }, { success: 'Queued again', refresh: ['admin_list_outbox'] }); }}>Try again</Button>}</Td>
                 </Tr>

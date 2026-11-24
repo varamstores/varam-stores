@@ -129,7 +129,7 @@ const Fees: React.FC<{ zone: Zone; canEdit: boolean }> = ({ zone, canEdit }) => 
           <div key={i} className="flex flex-wrap items-end gap-2">
             <Field label={i === 0 ? 'Baskets from' : 'From a basket of'} className="w-40"><MoneyInput value={r.fromMinor} disabled={i === 0 || !canEdit} onChange={(v) => setRows(rows.map((x, j) => (j === i ? { ...x, fromMinor: v ?? 0 } : x)))} /></Field>
             <Field label="Delivery costs" className="w-40"><MoneyInput value={r.feeMinor} disabled={!canEdit} onChange={(v) => setRows(rows.map((x, j) => (j === i ? { ...x, feeMinor: v ?? 0 } : x)))} /></Field>
-            {i > 0 && canEdit && <Button variant="ghost" aria-label="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4 text-red-600" /></Button>}
+            {i > 0 && canEdit && <Button variant="ghost" aria-label="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4 text-[#A63A3A]" /></Button>}
           </div>
         ))}
       </div>
@@ -170,7 +170,7 @@ const Windows: React.FC<{ zone: Zone; canEdit: boolean }> = ({ zone, canEdit }) 
               <Td><TextInput value={r.label} onChange={(v) => update(i, { label: v || null })} placeholder="e.g. Morning" disabled={!canEdit} className="w-32" /></Td>
               <Td><MoneyInput value={r.feeMinor} onChange={(v) => update(i, { feeMinor: v })} placeholder="none" disabled={!canEdit} className="w-24" /></Td>
               <Td><Checkbox checked={r.isActive} onChange={(v) => update(i, { isActive: v })} disabled={!canEdit} label="" /></Td>
-              <Td>{canEdit && <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>}</Td>
+              <Td>{canEdit && <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>}</Td>
             </tr>
           ))}
         </tbody>
@@ -179,7 +179,7 @@ const Windows: React.FC<{ zone: Zone; canEdit: boolean }> = ({ zone, canEdit }) 
         <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
           <Button size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setRows([...rows, { weekday: 1, start: '09:00', end: '11:00', capacity: 20, cutoffMinutes: 120, label: null, feeMinor: null, isActive: true }])}>Add a time</Button>
           <div className="flex items-center gap-3">
-            {problems && <span className="text-xs text-red-700">Each time needs an end after its start and a number of orders; two times cannot start together on the same day.</span>}
+            {problems && <span className="text-xs text-[#8A2B2B]">Each time needs an end after its start and a number of orders; two times cannot start together on the same day.</span>}
             <Button variant="primary" loading={busy} disabled={problems} onClick={() => void run('admin_set_zone_windows', { p_zone_id: zone.id, p_windows: rows.map(({ id: _id, ...w }) => w) }, { success: 'Delivery times saved', refresh: ['admin_list_zones', 'admin_list_slots'] })}>Save times</Button>
           </div>
         </div>

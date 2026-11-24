@@ -45,12 +45,12 @@ export default function ProductsScreen({ param }: ScreenProps) {
     <Screen
       title="Products"
       intro="Everything you sell: names, prices, photos, food information and stock."
-      guide={<ul>
-        <li><b>Add product</b> creates a draft. Give it a price and press <b>Put on sale</b> to show it in the shop.</li>
-        <li>Food products need <b>food information</b> by law (ingredients, allergens, nutrition). Products missing it are flagged.</li>
-        <li>Many changes at once? <b>Download CSV</b>, edit it in Excel or Google Sheets, then <b>Upload CSV</b>. You see every change and problem before anything is saved.</li>
-        <li><b>Archive</b> hides a product for good without losing its order history.</li>
-      </ul>}
+      guide={<ol>
+        <li>Press <b>Add product</b> and answer six short steps: <b>category → brand → how it’s sold → name &amp; pack → price → photo</b>. A missing category or brand can be added on the way.</li>
+        <li>It is saved as a <b>draft</b>. Food needs <b>food information</b> by law (ingredients, allergens, nutrition): fill it in on the Food information tab.</li>
+        <li>Press <b>Put on sale</b>. It appears in the shop straight away. <b>Archive</b> hides it for good without losing its order history.</li>
+        <li>Many changes at once? <b>Download CSV</b>, edit it in Excel or Google Sheets, then <b>Upload CSV</b>. Every change and problem is shown before anything is saved.</li>
+      </ol>}
       actions={<>
         <Button icon={<Download className="w-4 h-4" />} onClick={() => void exportCsv()}>Download CSV</Button>
         {canEdit && <Button icon={<Upload className="w-4 h-4" />} onClick={() => setImporting(true)}>Upload CSV</Button>}

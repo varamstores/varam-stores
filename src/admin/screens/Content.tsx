@@ -171,7 +171,7 @@ const PageOutline: React.FC<{ page: PageInfo; onEdit: (section: string) => void 
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-violet-100 text-violet-800 flex items-center justify-center shrink-0"><Icon className="w-5 h-5" strokeWidth={1.75} /></div>
+          <div className="w-11 h-11 rounded-xl bg-[#743C63] text-white flex items-center justify-center shrink-0"><Icon className="w-5 h-5" strokeWidth={1.75} /></div>
           <div className="min-w-0">
             <h2 className="text-[20px] font-semibold leading-tight">{page.label}</h2>
             {page.help && <p className="text-[13.5px] text-[#5F6B7A]">{page.help}</p>}
@@ -216,9 +216,9 @@ const PageOutline: React.FC<{ page: PageInfo; onEdit: (section: string) => void 
                       <label className="sr-only" htmlFor={`aud-${s.key}`}>Who sees {s.label}</label>
                       <div className="relative">
                         {aud === 'hidden' ? <EyeOff className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A8594] pointer-events-none" />
-                          : aud === 'all' ? <Eye className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" />
-                          : aud === 'desktop' ? <Monitor className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-sky-700 pointer-events-none" />
-                          : <Smartphone className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-sky-700 pointer-events-none" />}
+                          : aud === 'all' ? <Eye className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#2F6B4F] pointer-events-none" />
+                          : aud === 'desktop' ? <Monitor className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#2B4C7E] pointer-events-none" />
+                          : <Smartphone className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#2B4C7E] pointer-events-none" />}
                         <select id={`aud-${s.key}`} value={aud} disabled={busy} onChange={(e) => void setAudience(s, e.target.value as Audience)}
                           className="h-9 pl-8 pr-7 rounded-lg border border-[#D9DDE3] bg-white text-[13.5px] cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#F5D103]/70">
                           {AUDIENCE.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}

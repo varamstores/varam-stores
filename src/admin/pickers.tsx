@@ -25,7 +25,7 @@ export const ProductPicker: React.FC<{ onPick: (p: PickedProduct) => void; place
           {isFetching && !data ? <div className="p-3 text-sm text-slate-500 flex gap-2"><Loader2 className="w-4 h-4 animate-spin" />Searching…</div>
             : items.length === 0 ? <div className="p-3 text-sm text-slate-500">No products match “{q}”.</div>
             : items.map((p) => (
-              <button key={p.id} type="button" onClick={() => { onPick(p); setQ(''); }} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-amber-50 cursor-pointer">
+              <button key={p.id} type="button" onClick={() => { onPick(p); setQ(''); }} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-[#F8F0E3] cursor-pointer">
                 <Thumb src={p.image?.url} size={36} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium truncate">{p.name}</span>

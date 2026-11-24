@@ -179,7 +179,7 @@ export const DestinationPicker: React.FC<{ value: string; onChange: (href: strin
       {dest === 'product' && (arg
         ? <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm"><span className="truncate">{productName ?? arg}</span><Button size="sm" variant="ghost" onClick={() => update(dest, '')}>Change</Button></div>
         : <ProductPicker activeOnly onPick={(p) => update(dest, p.slug)} placeholder="Find the product…" />)}
-      <div className={`flex items-start gap-1.5 text-xs rounded-md px-2.5 py-1.5 ${href ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
+      <div className={`flex items-start gap-1.5 text-xs rounded-md px-2.5 py-1.5 ${href ? 'bg-[#EAF3EE] text-[#245740]' : 'bg-[#F8F0E3] text-[#7A4A0F]'}`}>
         <ArrowRight className="w-3.5 h-3.5 mt-px shrink-0" />
         <span>Goes to: <b>{describeHref(href, L, productName)}</b></span>
       </div>

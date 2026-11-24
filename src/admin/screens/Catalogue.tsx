@@ -214,11 +214,11 @@ const LogoStrip: React.FC = () => {
             <li key={id} className="flex items-center gap-3 rounded-lg border border-[#E2E8F0] p-2">
               <span className="w-6 text-xs text-slate-400 tabular-nums">{i + 1}</span>
               <Thumb src={b?.logo?.url} size={32} />
-              <span className="flex-1 text-sm font-medium">{b?.name ?? 'Unknown'}{!b?.logoPath && <span className="text-xs text-amber-700"> · no logo</span>}</span>
+              <span className="flex-1 text-sm font-medium">{b?.name ?? 'Unknown'}{!b?.logoPath && <span className="text-xs text-[#7A4A0F]"> · no logo</span>}</span>
               {canEdit && <>
                 <Button size="sm" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>
                 <Button size="sm" variant="ghost" aria-label="Move down" disabled={i === current.length - 1} onClick={() => move(i, 1)}><ArrowDown className="w-3.5 h-3.5" /></Button>
-                <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setIds(current.filter((x) => x !== id))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>
+                <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setIds(current.filter((x) => x !== id))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>
               </>}
             </li>
           );
@@ -281,10 +281,10 @@ const ShelfForm: React.FC<{ initial: Shelf; onClose: () => void }> = ({ initial,
           <li key={p.id} className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] p-2">
             <span className="w-5 text-xs text-slate-400">{i + 1}</span>
             <Thumb src={p.image?.url ?? mediaUrl(null)} size={32} />
-            <span className="flex-1 text-sm truncate">{p.name}{p.status !== 'active' && <span className="text-xs text-amber-700"> · not on sale (hidden)</span>}</span>
+            <span className="flex-1 text-sm truncate">{p.name}{p.status !== 'active' && <span className="text-xs text-[#7A4A0F]"> · not on sale (hidden)</span>}</span>
             <Button size="sm" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>
             <Button size="sm" variant="ghost" aria-label="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)}><ArrowDown className="w-3.5 h-3.5" /></Button>
-            <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setItems(items.filter((x) => x.id !== p.id))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>
+            <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => setItems(items.filter((x) => x.id !== p.id))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>
           </li>
         ))}
         {!items.length && <li className="text-sm text-slate-500">No products yet. Search above to add some.</li>}

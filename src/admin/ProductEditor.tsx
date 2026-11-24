@@ -8,6 +8,7 @@ import {
 import { MediaPicker } from './pickers';
 import { useLookups, type Lookups } from './lookups';
 import { AdjustStock, StockHistory, StockLevels } from './StockForms';
+import { NewProductWizard } from './NewProduct';
 
 // Add or edit one product: details, price, food information, photos, stock & suppliers.
 
@@ -50,15 +51,8 @@ export const ProductEditor: React.FC<{ productId: string | null; onClose: () => 
   const [tab, setTab] = useState('details');
   const canEdit = hasPermission('inventory');
 
-  if (!productId) {
-    return (
-      <Drawer open onClose={onClose} title="Add a product" subtitle="It starts as a draft. Nothing appears in the shop until you put it on sale.">
-        {lookups.data ? <DetailsForm lookups={lookups.data} initial={BLANK} isNew canEdit={canEdit}
-          onSave={async (d) => { const out = await run<Product>('admin_save_product', { p: d }, { success: 'Product created — now add a price and photos' }); if (out) onCreated(out.id); }} />
-          : <Loading />}
-      </Drawer>
-    );
-  }
+  // Adding a product is a numbered, one-question-at-a-time flow: category → brand → how it is sold → name → price → photo.
+  if (!productId) return <NewProductWizard onClose={onClose} onCreated={onCreated} />;
 
   const status = p?.status;
   return (
@@ -377,7 +371,7 @@ const PhotosTab: React.FC<{ p: Product; canEdit: boolean }> = ({ p, canEdit }) =
                   <div className="flex flex-col gap-1">
                     <Button size="sm" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp className="w-3.5 h-3.5" /></Button>
                     <Button size="sm" variant="ghost" aria-label="Move down" disabled={i === images.length - 1} onClick={() => move(i, 1)}><ArrowDown className="w-3.5 h-3.5" /></Button>
-                    <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => update(images.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-red-600" /></Button>
+                    <Button size="sm" variant="ghost" aria-label="Remove" onClick={() => update(images.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>
                   </div>
                 )}
               </li>
@@ -416,7 +410,7 @@ const StockTab: React.FC<{ p: Product; canEdit: boolean }> = ({ p, canEdit }) =>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div><div className="text-slate-500 text-xs">In stock</div><div className="text-xl font-bold tabular-nums">{s.onHand}</div></div>
             <div><div className="text-slate-500 text-xs">Held for orders</div><div className="text-xl font-bold tabular-nums">{s.reserved}</div></div>
-            <div><div className="text-slate-500 text-xs">Free to sell</div><div className={`text-xl font-bold tabular-nums ${s.available <= 0 ? 'text-red-600' : s.available <= (s.reorderPoint ?? -1) ? 'text-amber-600' : ''}`}>{s.available}</div></div>
+            <div><div className="text-slate-500 text-xs">Free to sell</div><div className={`text-xl font-bold tabular-nums ${s.available <= 0 ? 'text-[#A63A3A]' : s.available <= (s.reorderPoint ?? -1) ? 'text-amber-600' : ''}`}>{s.available}</div></div>
             <div><div className="text-slate-500 text-xs">Buy more at / up to</div><div className="text-xl font-bold tabular-nums">{s.reorderPoint ?? '—'} / {s.optimalStock ?? '—'}</div></div>
           </div>
           {s.unitCostMinor != null && <p className="text-xs text-slate-500 mt-2">Costs you {pence(s.unitCostMinor)} each.</p>}

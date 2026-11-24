@@ -118,7 +118,7 @@ export const OrderPanel: React.FC<{ orderId: string | null; onClose: () => void;
               <Facts items={[
                 ['When', slotText(o.slot)],
                 ['Address', o.address ? <>{o.address.line1}{o.address.line2 ? `, ${o.address.line2}` : ''}<br />{o.address.city} {o.address.postcode}</> : '—'],
-                o.deliveryNotes ? ['Notes', <span className="font-medium text-amber-800">{o.deliveryNotes}</span>] : null,
+                o.deliveryNotes ? ['Notes', <span className="font-medium text-[#7A4A0F]">{o.deliveryNotes}</span>] : null,
                 o.minAge ? ['ID check', <Badge tone="amber">Over {o.minAge} — check ID on delivery{o.idCheckedAt ? ' (checked)' : ''}</Badge>] : null,
                 o.van ? ['Van', `${o.van.code} ${o.van.name}`] : null,
                 o.driver ? ['Driver', o.driver.name] : null,
@@ -132,7 +132,7 @@ export const OrderPanel: React.FC<{ orderId: string | null; onClose: () => void;
               <thead><tr><Th>Product</Th><Th>Amount</Th><Th>Picking</Th><Th className="text-right">Price</Th></tr></thead>
               <tbody>
                 {o.staffLines.map((l) => (
-                  <Tr key={l.id} className={cx(l.substituteFor && 'bg-indigo-50/40')}>
+                  <Tr key={l.id} className={cx(l.substituteFor && 'bg-[#F0E6EE]/40')}>
                     <Td>
                       <div className={cx('font-medium', l.substituteFor && 'pl-4')}>{l.substituteFor ? '↳ ' : ''}{l.name}</div>
                       <div className={cx('text-xs text-slate-500', l.substituteFor && 'pl-4')}>{l.sku}{l.packSize ? ` · ${l.packSize}` : ''}{l.substituteFor ? ' · substitute' : !l.substitutionAllowed ? ' · no substitutes' : ''}</div>
@@ -159,7 +159,7 @@ export const OrderPanel: React.FC<{ orderId: string | null; onClose: () => void;
                 ['of which VAT', money((o.totals.final ?? o.totals.estimated).vat)],
                 ['Card held', money(o.totals.authorised)],
                 ['Charged', money(o.totals.captured)],
-                refunded > 0 ? ['Refunded', <span className="text-red-700">{pence(refunded)}</span>] : null,
+                refunded > 0 ? ['Refunded', <span className="text-[#8A2B2B]">{pence(refunded)}</span>] : null,
                 ['Paid with', o.payment ? (o.payment.provider === 'simulated' ? 'Test mode (no card)' : o.payment.provider === 'sample' ? 'Example data' : `${o.payment.brand ?? 'Card'}${o.payment.last4 ? ` •••• ${o.payment.last4}` : ''}${o.payment.wallet ? ` (${o.payment.wallet})` : ''}`) : '—'],
                 o.promotions.length ? ['Offers', o.promotions.map((p) => p.code ?? p.label).join(', ')] : null,
                 ['VAT invoice', o.invoice ? `${o.invoice.number} · ${dateTime(o.invoice.issuedAt)}` : 'Not issued'],

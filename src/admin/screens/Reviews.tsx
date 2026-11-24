@@ -33,7 +33,7 @@ export default function ReviewsScreen(_: ScreenProps) {
             <Card key={r.id}>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-amber-500 text-lg leading-none">{'★'.repeat(r.rating)}<span className="text-slate-200">{'★'.repeat(5 - r.rating)}</span></div>
+                  <div className="text-[#B0701E] text-lg leading-none">{'★'.repeat(r.rating)}<span className="text-slate-200">{'★'.repeat(5 - r.rating)}</span></div>
                   <div className="text-sm font-semibold mt-1">{r.displayName} {r.isVerified && <Badge tone="green">Verified buyer</Badge>} <SampleTag show={r.isSample} /></div>
                   <div className="text-xs text-slate-500">{r.product ? `On ${r.product.name}` : 'About the shop'} · {dateTime(r.createdAt)}</div>
                 </div>
