@@ -33,9 +33,9 @@ const WorkTile: React.FC<{ icon: React.ElementType; count: number; label: string
   const idle = count === 0;
   const tones = { amber: 'bg-[#9A5B13] text-white', violet: 'bg-[#743C63] text-white', sky: 'bg-[#2B4C7E] text-white', red: 'bg-[#A63A3A] text-white' };
   return (
-    <button type="button" onClick={onClick} className={cx('group text-left rounded-xl border p-4 sm:p-5 cursor-pointer transition-colors', idle ? 'bg-white border-[#E4E7EC] hover:border-[#9AA3AF]' : 'bg-white border-[#18181B] hover:bg-[#FFFCEB]')}>
+    <button type="button" onClick={onClick} className={cx('group text-left rounded-lg border p-4 sm:p-5 cursor-pointer transition-colors', idle ? 'bg-white border-[#E4E7EC] hover:border-[#9AA3AF]' : 'bg-white border-[#18181B] hover:bg-[#FFFCEB]')}>
       <div className="flex items-center justify-between">
-        <span className={cx('w-10 h-10 rounded-lg flex items-center justify-center', idle ? 'bg-[#F1F3F5] text-[#7A8594]' : tones[tone])}><Icon className="w-5 h-5" strokeWidth={1.75} /></span>
+        <span className={cx('w-10 h-10 rounded-md flex items-center justify-center', idle ? 'bg-[#F1F3F5] text-[#7A8594]' : tones[tone])}><Icon className="w-5 h-5" strokeWidth={1.75} /></span>
         <span className={cx('text-[34px] leading-none font-semibold tabular-nums', idle && 'text-[#C3C9D2]')}>{count}</span>
       </div>
       <div className="mt-4 text-[15px] font-medium">{label}</div>
@@ -63,9 +63,9 @@ export default function DashboardScreen({ go }: ScreenProps) {
   ] : [];
   const todo = items.filter((t) => t.show && hasPermission(t.perm));
   const tiles = a ? [
-    hasPermission('packing_queue') && <WorkTile key="pick" icon={PackageCheck} count={a.toPickToday} label="Orders to pick today" action="Start picking" tone="amber" onClick={() => go('picking')} />,
-    hasPermission('orders_dispatch') && <WorkTile key="send" icon={Truck} count={a.toDispatch} label="Packed, ready to send" action="Send them out" tone="violet" onClick={() => go('deliveries')} />,
-    hasPermission('orders_dispatch') && <WorkTile key="road" icon={Truck} count={a.onTheRoad} label="On the road now" action="Mark delivered" tone="sky" onClick={() => go('deliveries')} />,
+    hasPermission('packing_queue') && <WorkTile key="pick" icon={PackageCheck} count={a.toPickToday} label="Orders to pick today" action="Start picking" tone="amber" onClick={() => go('orders')} />,
+    hasPermission('orders_dispatch') && <WorkTile key="send" icon={Truck} count={a.toDispatch} label="Packed, ready to send" action="Send them out" tone="violet" onClick={() => go('orders')} />,
+    hasPermission('orders_dispatch') && <WorkTile key="road" icon={Truck} count={a.onTheRoad} label="On the road now" action="Mark delivered" tone="sky" onClick={() => go('orders')} />,
     (hasPermission('refund_requests') || hasPermission('financials')) && <WorkTile key="refund" icon={Undo2} count={a.pendingRefunds} label="Refunds waiting for a decision" action="Decide" tone="red" onClick={() => go('refunds')} />,
   ].filter(Boolean) : [];
 
@@ -83,6 +83,8 @@ export default function DashboardScreen({ go }: ScreenProps) {
             </Notice>
           )}
 
+          <SetupChecklist go={go} />
+
           {tiles.length > 0 && (
             <section aria-label="Today’s work" className={cx('grid gap-3', tiles.length >= 4 ? 'grid-cols-2 xl:grid-cols-4' : tiles.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2')}>{tiles}</section>
           )}
@@ -98,7 +100,7 @@ export default function DashboardScreen({ go }: ScreenProps) {
                     return (
                       <li key={t.text} className="border-b border-[#F0F2F5] last:border-0">
                         <button type="button" onClick={() => go(...t.to)} className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[#FFFCEB] cursor-pointer group">
-                          <span className={cx('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', t.tone === 'red' ? 'bg-[#F6E6E4] text-[#A63A3A]' : t.tone === 'amber' ? 'bg-[#F6ECDD] text-[#9A5B13]' : 'bg-[#ECEEF1] text-[#4B5563]')}><Icon className="w-4 h-4" /></span>
+                          <span className={cx('w-8 h-8 rounded-md flex items-center justify-center shrink-0', t.tone === 'red' ? 'bg-[#F6E6E4] text-[#A63A3A]' : t.tone === 'amber' ? 'bg-[#F6ECDD] text-[#9A5B13]' : 'bg-[#ECEEF1] text-[#4B5563]')}><Icon className="w-4 h-4" /></span>
                           <span className="flex-1 text-[14px]"><b className="tabular-nums">{t.count}</b> {t.text}</span>
                           <span className="text-[20px] leading-none text-[#C3C9D2] group-hover:text-[#18181B]">›</span>
                         </button>
@@ -187,6 +189,57 @@ export default function DashboardScreen({ go }: ScreenProps) {
     </Screen>
   );
 }
+
+interface Step { key: string; done: boolean; count?: number; of?: number; drafts?: number; screen: string }
+const STEP_TEXT: Record<string, { title: string; todo: string; perm: string }> = {
+  categories: { title: 'Add categories', todo: 'The aisles of your shop', perm: 'inventory_read' },
+  brands: { title: 'Add brands', todo: 'The brands you sell', perm: 'inventory_read' },
+  products: { title: 'Add products and put them on sale', todo: 'At least one product on sale', perm: 'inventory_read' },
+  stock: { title: 'Enter stock', todo: 'How many of each product you have', perm: 'inventory_read' },
+  suppliers: { title: 'Add suppliers', todo: 'Who you buy from', perm: 'inventory_read' },
+  delivery: { title: 'Set delivery areas and times', todo: 'Postcodes, charges and delivery times', perm: 'fleet_management' },
+  company: { title: 'Add company & VAT details', todo: 'Needed for VAT invoices (Settings → Company & VAT)', perm: 'financials' },
+  payments: { title: 'Connect card payments', todo: 'Stripe keys from your developer, then switch payments to Stripe in Settings', perm: 'full_access' },
+  emails: { title: 'Connect emails', todo: 'Resend key and your sending address, from your developer', perm: 'full_access' },
+  legal: { title: 'Publish your legal pages', todo: 'Terms, Privacy, Cookies and Returns (Website content)', perm: 'content' },
+};
+
+/** The order to set a new shop up in, with ticks for what is done. Hidden once everything is done. */
+const SetupChecklist: React.FC<{ go: ScreenProps['go'] }> = ({ go }) => {
+  const { hasPermission } = useAuth();
+  const { data } = useAdminQuery<Step[]>('admin_setup_checklist');
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem('admin-setup-hidden') !== '1'; } catch { return true; } });
+  if (!data || data.every((s) => s.done)) return null;
+  const done = data.filter((s) => s.done).length;
+  const toggle = () => { setOpen(!open); try { localStorage.setItem('admin-setup-hidden', open ? '1' : '0'); } catch { /* private mode */ } };
+  return (
+    <Card title={`Set up your shop — ${done} of ${data.length} done`} description="Work through these in order. Each step builds on the one before."
+      actions={<button type="button" onClick={toggle} className="text-[13px] font-medium underline underline-offset-2 cursor-pointer">{open ? 'Hide for now' : 'Show steps'}</button>}
+      padded={open}>
+      {open && (
+        <>
+          <div className="h-1.5 bg-[#E8EBEF] rounded-full mb-4 overflow-hidden"><div className="h-full bg-[#2F6B4F]" style={{ width: `${(done / data.length) * 100}%` }} /></div>
+          <ol className="grid md:grid-cols-2 gap-x-6 gap-y-2">
+            {data.map((s, i) => {
+              const t = STEP_TEXT[s.key] ?? { title: s.key, todo: '', perm: '' };
+              const canOpen = !t.perm || hasPermission(t.perm);
+              return (
+                <li key={s.key} className="flex items-start gap-3 py-1">
+                  <span className={cx('w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 mt-0.5', s.done ? 'bg-[#2F6B4F] text-white' : 'bg-[#ECEEF1] text-[#3F4652]')}>{s.done ? <CheckCircle2 className="w-4 h-4" /> : i + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className={cx('text-[14px] font-medium', s.done && 'text-[#5F6B7A] line-through decoration-[#9AA3AF]')}>{t.title}</div>
+                    <div className="text-[12.5px] text-[#5F6B7A]">{s.done ? (s.count != null ? `Done (${s.count}${s.of != null ? ` of ${s.of}` : ''})` : 'Done') : t.todo}</div>
+                  </div>
+                  {!s.done && canOpen && <button type="button" onClick={() => go(s.screen)} className="text-[13px] font-semibold whitespace-nowrap hover:underline cursor-pointer mt-0.5">Go ›</button>}
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      )}
+    </Card>
+  );
+};
 
 const Figure: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
   <div>

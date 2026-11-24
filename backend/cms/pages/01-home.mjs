@@ -48,7 +48,7 @@ export default page('home', 'Homepage', {
         primary: { label: 'Shop Bakery & Dairy', href: '/shop?category=bakery-dairy' }, secondary: { label: 'Special Deals', href: '/shop?sale=1' }, secondaryIcon: 'tag',
         image: img('/hero-slide-bakery.jpg', 'Fresh bread and dairy'),
       },
-    ], { min: 1, maxItems: 6 }),
+    ], { min: 1, maxItems: 20 }),
     number('autoplay_seconds', 'Seconds per slide', 6, { help: 'How long each slide shows before moving on. 0 turns autoplay off.' }),
     list('highlights', 'Highlights strip', { icon: f.icon('Icon'), title: f.text('Bold word', { max: 20 }), subtitle: f.text('Small word', { max: 24 }) }, [
       { icon: 'truck', title: 'Same-day', subtitle: 'Delivery' },
@@ -98,7 +98,7 @@ export default page('home', 'Homepage', {
         image: img('/promo-card-basket.jpg', 'Wicker basket of fresh farm produce'), href: '/shop', button: 'Shop Now', code: '', theme: 'light' },
       { eyebrow: 'Healthy Homes. Happier Days.', title: 'Fresh Groceries\nFor Your Family,\n*Without Hassle.*', text: 'Carefully selected produce, trusted brands and everyday essentials — all in one place.',
         image: img('/promo-card-family.jpg', 'Bowl of fresh lemons, garlic and basil'), href: '/shop', button: 'Explore Store', code: '', theme: 'dark' },
-    ], { maxItems: 3 }),
+    ], { maxItems: 9 }),
     text('code_label', 'Promo code label', 'Use code', { max: 20 }),
   ]),
 

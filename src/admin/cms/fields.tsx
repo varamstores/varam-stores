@@ -188,7 +188,7 @@ export const ListEditor: React.FC<{ schema: Schema; value: unknown[]; onChange: 
       {help && <p className="text-xs text-slate-500 mb-2">{help}</p>}
       <div className="space-y-2">
         {value.map((item, i) => (
-          <div key={i} className="rounded-lg border border-[#E2E8F0] bg-white">
+          <div key={i} className="rounded-md border border-[#E2E8F0] bg-white">
             <div className="flex items-center gap-1 px-3 py-2">
               <button type="button" onClick={() => setOpen(open === i ? null : i)} className="flex-1 flex items-center gap-2 text-left text-sm cursor-pointer min-w-0">
                 <ChevronDown className={cx('w-4 h-4 shrink-0 transition-transform', open === i && 'rotate-180')} />
@@ -241,7 +241,7 @@ export const ImageSlot: React.FC<{ value: Img | null | undefined; onChange: (v: 
     return (
       <div className="flex-1 min-w-[12rem]">
         <div className="text-xs font-semibold mb-1">{title}</div>
-        <div className={cx('rounded-lg border border-[#E2E8F0] bg-slate-50 flex items-center justify-center overflow-hidden', which === 'desktop' ? 'h-28' : 'h-28 w-20')}>
+        <div className={cx('rounded-md border border-[#E2E8F0] bg-slate-50 flex items-center justify-center overflow-hidden', which === 'desktop' ? 'h-28' : 'h-28 w-20')}>
           {url ? <img src={url} alt="" className="w-full h-full object-contain" /> : <ImagePlus className="w-6 h-6 text-slate-300" />}
         </div>
         <div className="flex gap-2 mt-1.5">
@@ -253,7 +253,7 @@ export const ImageSlot: React.FC<{ value: Img | null | undefined; onChange: (v: 
     );
   };
   return (
-    <div className="rounded-lg border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
+    <div className="rounded-md border border-[#E2E8F0] bg-slate-50/60 p-3 space-y-3">
       <div className="flex flex-wrap gap-4">
         {slot('desktop', 'Computer picture', 'Wide pictures work best.')}
         {slot('mobile', 'Phone picture (optional)', 'Leave empty to use the computer picture.')}
@@ -277,14 +277,14 @@ const IconPicker: React.FC<{ value: string; options: string[]; onChange: (v: str
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-[#E2E8F0] bg-white text-sm cursor-pointer hover:border-slate-400">
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 h-10 px-3 rounded-md border border-[#E2E8F0] bg-white text-sm cursor-pointer hover:border-slate-400">
         <CmsIcon name={value} className="w-5 h-5" /> {pretty(value || 'choose')} <ChevronDown className="w-4 h-4 text-slate-400" />
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Choose an icon" size="md">
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
           {options.map((o) => (
             <button key={o} type="button" onClick={() => { onChange(o); setOpen(false); }} title={pretty(o)}
-              className={cx('flex flex-col items-center gap-1 p-2 rounded-lg border text-[10px] cursor-pointer', o === value ? 'border-[#18181B] bg-[#FEF9C3]' : 'border-[#E2E8F0] hover:border-slate-400')}>
+              className={cx('flex flex-col items-center gap-1 p-2 rounded-md border text-[10px] cursor-pointer', o === value ? 'border-[#18181B] bg-[#FEF9C3]' : 'border-[#E2E8F0] hover:border-slate-400')}>
               <CmsIcon name={o} className="w-6 h-6" /><span className="truncate w-full text-center">{pretty(o)}</span>
             </button>
           ))}
@@ -327,7 +327,7 @@ export const RichTextEditor: React.FC<{ value: string; onChange: (v: string) => 
     <button type="button" title={label} aria-label={label} onClick={fn} className="h-8 px-2 rounded-md hover:bg-slate-100 inline-flex items-center gap-1 text-xs cursor-pointer">{icon}</button>
   );
   return (
-    <div className="rounded-lg border border-[#E2E8F0] bg-white overflow-hidden">
+    <div className="rounded-md border border-[#E2E8F0] bg-white overflow-hidden">
       <div className="flex flex-wrap items-center gap-0.5 px-1.5 py-1 border-b border-slate-100 bg-slate-50">
         {tool('Big heading', <Heading2 className="w-4 h-4" />, () => linePrefix(() => '## '))}
         {tool('Small heading', <Heading3 className="w-4 h-4" />, () => linePrefix(() => '### '))}

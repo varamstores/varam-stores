@@ -21,20 +21,25 @@ export default function ActivityScreen(_: ScreenProps) {
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
   const query = useInfiniteQuery({
     queryKey: ['admin', 'admin_list_audit_log', type, q],
+    // (a new search starts again from the newest page)
     queryFn: ({ pageParam }) => rpc<Entry[]>('admin_list_audit_log', { p_entity_type: type || undefined, p_q: q || undefined, p_limit: 100, p_before: pageParam ?? undefined }),
     initialPageParam: null as number | null,
     getNextPageParam: (last) => (last.length === 100 ? last[last.length - 1].id : undefined),
   });
-  const rows = query.data?.pages.flat() ?? [];
+  const pages = query.data?.pages ?? [];
+  const shown = Math.min(page, Math.max(0, pages.length - 1));
+  const rows = pages[shown] ?? [];
+  const older = async () => { if (shown + 1 >= pages.length) { const r = await query.fetchNextPage(); if ((r.data?.pages.length ?? 0) <= shown + 1) return; } setPage(shown + 1); };
   return (
     <Screen title="Activity log" intro="Every change made in the store portal and by the system: who, what and when. Nothing here can be edited or deleted."
       guide={<p>Use it to answer “who changed this price?” or “when was this order cancelled?”. Click a line to see exactly what changed.</p>}>
       <Card padded={false}>
         <div className="p-4 flex flex-col md:flex-row gap-2 border-b border-slate-100">
-          <SearchInput value={q} onChange={setQ} placeholder="Search actions or item numbers…" className="flex-1" />
-          <Select value={type} onChange={setType} placeholder="Everything" className="md:w-60" options={TYPES.map((t) => ({ value: t, label: t.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) }))} />
+          <SearchInput value={q} onChange={(v) => { setQ(v); setPage(0); }} placeholder="Search actions or item numbers…" className="flex-1" />
+          <Select value={type} onChange={(v) => { setType(v); setPage(0); }} placeholder="Everything" className="md:w-60" options={TYPES.map((t) => ({ value: t, label: t.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) }))} />
         </div>
         {query.isLoading ? <Loading /> : query.error ? <ErrorState error={query.error} text={errorText(query.error)} onRetry={() => void query.refetch()} /> : !rows.length ? (
           <Empty icon={<History className="w-5 h-5" />} title="Nothing found" />
@@ -56,7 +61,13 @@ export default function ActivityScreen(_: ScreenProps) {
                 ))}
               </tbody>
             </Table>
-            {query.hasNextPage && <div className="p-3 text-center"><Button size="sm" loading={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>Show older</Button></div>}
+            <nav aria-label="Pages" className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[#E8EBEF]">
+              <span className="text-[13px] text-[#5F6B7A]">Page {shown + 1} · newest first</span>
+              <div className="flex gap-1">
+                <Button size="sm" disabled={shown === 0} onClick={() => setPage(shown - 1)}>‹ Newer</Button>
+                <Button size="sm" loading={query.isFetchingNextPage} disabled={shown + 1 >= pages.length && !query.hasNextPage} onClick={() => void older()}>Older ›</Button>
+              </div>
+            </nav>
           </>
         )}
       </Card>

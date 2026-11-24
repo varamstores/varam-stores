@@ -3,7 +3,7 @@ import { MailPlus, Plus } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, ago } from '../lib';
-import { Badge, Button, Card, Checkbox, ConfirmButton, ErrorState, Field, Loading, Modal, Notice, SampleTag, Screen, Table, Tabs, Td, TextInput, Th, Tr } from '../ui';
+import { Badge, Button, Card, Checkbox, ConfirmButton, ErrorState, Field, Loading, Modal, Notice, SampleTag, Screen, Table, Tabs, Td, TextInput, Th, Tr, usePager } from '../ui';
 
 interface StaffMember { id: string; fullName: string; email: string; role: string; roleName: string; status: string; hasLogin: boolean; invitePending: boolean; lastSignInAt: string | null; lastActiveAt: string | null; isSample: boolean; isMe: boolean }
 interface Role { code: string; name: string; description: string; permissions: string[] }
@@ -25,6 +25,7 @@ const STATUS: Record<string, { label: string; tone: 'green' | 'amber' | 'grey' |
 export default function StaffScreen(_: ScreenProps) {
   const { hasPermission } = useAuth();
   const { data, isLoading, error, refetch } = useAdminQuery<StaffData>('admin_list_staff');
+  const { pageItems, pager } = usePager(data?.staff, 25);
   const [tab, setTab] = useState('people');
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<StaffMember | null>(null);
@@ -46,7 +47,7 @@ export default function StaffScreen(_: ScreenProps) {
           <Table>
             <thead><tr><Th>Person</Th><Th>Role</Th><Th>Status</Th><Th>Last signed in</Th></tr></thead>
             <tbody>
-              {data.staff.map((s) => (
+              {pageItems.map((s) => (
                 <Tr key={s.id} onClick={() => setEditing(s)}>
                   <Td><div className="font-medium">{s.fullName} {s.isMe && <Badge tone="yellow">You</Badge>} <SampleTag show={s.isSample} /></div><div className="text-xs text-slate-500">{s.email}</div></Td>
                   <Td>{s.roleName}</Td>
@@ -56,6 +57,7 @@ export default function StaffScreen(_: ScreenProps) {
               ))}
             </tbody>
           </Table>
+          {pager}
         </Card>
       ) : <Roles data={data} canEdit={hasPermission('full_access')} />}
       {inviting && data && <InviteForm roles={data.roles} onClose={() => setInviting(false)} />}
@@ -67,7 +69,7 @@ export default function StaffScreen(_: ScreenProps) {
 const RoleChoice: React.FC<{ roles: Role[]; value: string; onChange: (v: string) => void }> = ({ roles, value, onChange }) => (
   <div className="space-y-2">
     {roles.map((r) => (
-      <label key={r.code} className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer ${value === r.code ? 'border-[#18181B] bg-[#FEF9C3]/40' : 'border-[#E2E8F0]'}`}>
+      <label key={r.code} className={`flex items-start gap-3 rounded-md border p-3 cursor-pointer ${value === r.code ? 'border-[#18181B] bg-[#FEF9C3]/40' : 'border-[#E2E8F0]'}`}>
         <input type="radio" name="role" checked={value === r.code} onChange={() => onChange(r.code)} className="mt-1 accent-[#18181B]" />
         <span><span className="block text-sm font-semibold">{r.name}</span><span className="block text-xs text-slate-500">{r.description}</span></span>
       </label>

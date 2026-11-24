@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Mail, RotateCw } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAction, useAdminQuery, dateTime, errorText } from '../lib';
-import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Field, Loading, Notice, Screen, Table, Tabs, Td, TextArea, TextInput, Th, Tr } from '../ui';
+import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Field, Loading, Notice, Screen, Table, Td, TextArea, TextInput, Th, Tr, usePager } from '../ui';
 
 interface Template { code: string; name: string; locale: string; channel: string; subject: string | null; body: string; updatedAt: string; isMarketing: boolean; placeholders: string[] }
 interface Message { id: string; channel: string; template: string | null; to: string; subject: string | null; body: string; status: string; attempts: number; error: string | null; isMarketing: boolean; order: string | null; createdAt: string; sentAt: string | null }
@@ -19,21 +19,38 @@ const STATUS_TONE = { queued: 'blue', sending: 'blue', sent: 'green', failed: 'r
 const STATUS_WORD: Record<string, string> = { queued: 'Waiting to send', sending: 'Sending', sent: 'Sent', failed: 'Failed', suppressed: 'Not sent (no consent)' };
 
 export default function EmailsScreen({ param }: ScreenProps) {
-  const [tab, setTab] = useState(param === 'failed' ? 'outbox' : 'templates');
+  const checklist = useAdminQuery<Array<{ key: string; done: boolean }>>('admin_setup_checklist');
+  const connected = checklist.data?.find((s) => s.key === 'emails')?.done;
+  const [logOpen, setLogOpen] = useState(param === 'failed');
   return (
     <Screen
       title="Emails"
-      intro="The wording of every email the shop sends, and a log of what was sent to whom."
-      guide={<ul>
-        <li>Edit the words freely. Text in <b>{'{{double brackets}}'}</b> is filled in for each customer, e.g. {'{{first_name}}'} becomes “Asha”. Click a grey chip to insert one.</li>
-        <li>Some links are required by law (e.g. unsubscribe) and cannot be removed.</li>
-        <li><b>Sent emails</b> shows every message. If one failed, fix the cause (often the email address) and press <b>Try again</b>.</li>
-      </ul>}
+      intro="The wording of the emails the shop sends to customers. Change any of them; the shop fills in names, orders and links for you."
+      guide={<ol>
+        <li>Press an email to open it, then change the subject and the message.</li>
+        <li>Grey <b>fill-in fields</b> like {'{{first_name}}'} are replaced for each customer (e.g. “Asha”). Click one to put it where your cursor is.</li>
+        <li>Some links are required by law (for example unsubscribe) and cannot be removed.</li>
+        <li>Press <b>Save wording</b>. The next email of that kind uses the new words.</li>
+      </ol>}
+      actions={<Button variant="ghost" onClick={() => setLogOpen(true)}>See what was sent</Button>}
     >
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'templates', label: 'Email wording' }, { value: 'outbox', label: 'Sent emails' }]} />
-      {tab === 'templates' ? <Templates /> : <Outbox initial={param === 'failed' ? 'failed' : ''} />}
+      {checklist.data && !connected && (
+        <Notice tone="info"><b>Emails are not connected yet.</b> They are sent through Resend from your own address (for example orders@varamfoods.co.uk). Until your developer adds the Resend key, emails wait in a queue and go out once it is connected. Sign-in emails (password reset, staff invitations) use the same address.</Notice>
+      )}
+      <Templates />
+      <Drawer open={logOpen} onClose={() => setLogOpen(false)} wide title="Emails sent" subtitle="Every email the shop has sent or is about to send. If one failed, fix the cause (often the address) and press Try again.">
+        <Outbox initial={param === 'failed' ? 'failed' : ''} />
+      </Drawer>
     </Screen>
   );
+}
+
+// Which part of the shop each email belongs to, so the list reads in plain groups.
+function groupOf(t: Template): string {
+  if (t.isMarketing) return 'Marketing (only to people who agreed)';
+  if (/^(order|refund|repeat)/.test(t.code)) return 'Orders';
+  if (/^(purchase|supplier)/.test(t.code)) return 'Suppliers';
+  return 'Account & other';
 }
 
 const Templates: React.FC = () => {
@@ -41,23 +58,30 @@ const Templates: React.FC = () => {
   const [open, setOpen] = useState<Template | null>(null);
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
+  const groups = [...new Set((data ?? []).map(groupOf))].sort((a, b) => ['Orders', 'Account & other', 'Marketing (only to people who agreed)', 'Suppliers'].indexOf(a) - ['Orders', 'Account & other', 'Marketing (only to people who agreed)', 'Suppliers'].indexOf(b));
   return (
-    <Card padded={false}>
-      <Table>
-        <thead><tr><Th>Email</Th><Th>Subject</Th><Th>Type</Th><Th>Last changed</Th></tr></thead>
-        <tbody>
-          {(data ?? []).map((t) => (
-            <Tr key={`${t.code}-${t.channel}`} onClick={() => setOpen(t)}>
-              <Td className="font-medium">{t.name}</Td>
-              <Td className="text-slate-600 max-w-sm truncate">{t.subject ?? '—'}</Td>
-              <Td>{t.isMarketing ? <Badge tone="violet">Marketing</Badge> : <Badge>Service</Badge>}{t.channel !== 'email' && <Badge tone="blue">{t.channel.toUpperCase()}</Badge>}</Td>
-              <Td className="text-slate-500 text-xs">{dateTime(t.updatedAt)}</Td>
-            </Tr>
-          ))}
-        </tbody>
-      </Table>
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <Card key={g} title={g} padded={false}>
+          <ul>
+            {(data ?? []).filter((t) => groupOf(t) === g).map((t) => (
+              <li key={`${t.code}-${t.channel}`} className="border-b border-[#E8EBEF] last:border-0">
+                <button type="button" onClick={() => setOpen(t)} className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[#FFFCEB] cursor-pointer group">
+                  <Mail className="w-4 h-4 text-[#7A8594] shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14.5px] font-medium">{t.name}{t.channel !== 'email' && <span className="text-[12px] text-[#7A8594]"> · {t.channel.toUpperCase()}</span>}</span>
+                    <span className="block text-[13px] text-[#5F6B7A] truncate">{t.subject ?? '—'}</span>
+                  </span>
+                  <span className="text-[12px] text-[#7A8594] hidden sm:block">Changed {dateTime(t.updatedAt)}</span>
+                  <span className="text-[20px] leading-none text-[#C3C9D2] group-hover:text-[#18181B]">›</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ))}
       {open && <TemplateEditor t={open} onClose={() => setOpen(null)} />}
-    </Card>
+    </div>
   );
 };
 
@@ -94,7 +118,8 @@ const TemplateEditor: React.FC<{ t: Template; onClose: () => void }> = ({ t, onC
 
 const Outbox: React.FC<{ initial: string }> = ({ initial }) => {
   const [status, setStatus] = useState(initial);
-  const { data, isLoading, error, refetch } = useAdminQuery<Message[]>('admin_list_outbox', { p_status: status || undefined, p_limit: 200 }, { refetchInterval: 20_000 });
+  const { data, isLoading, error, refetch } = useAdminQuery<Message[]>('admin_list_outbox', { p_status: status || undefined, p_limit: 500 }, { refetchInterval: 20_000 });
+  const { pageItems, pager } = usePager(data, 25);
   const { run, busy } = useAction();
   const [open, setOpen] = useState<Message | null>(null);
   return (
@@ -106,7 +131,7 @@ const Outbox: React.FC<{ initial: string }> = ({ initial }) => {
           <Table>
             <thead><tr><Th>To</Th><Th>Subject</Th><Th>Status</Th><Th>When</Th><Th /></tr></thead>
             <tbody>
-              {data.map((m) => (
+              {pageItems.map((m) => (
                 <Tr key={m.id} onClick={() => setOpen(m)}>
                   <Td className="max-w-[14rem] truncate">{m.to}</Td>
                   <Td className="max-w-sm"><div className="truncate">{m.subject ?? m.template}</div>{m.order && <div className="text-xs text-slate-500">Order {m.order}</div>}</Td>
@@ -118,9 +143,10 @@ const Outbox: React.FC<{ initial: string }> = ({ initial }) => {
             </tbody>
           </Table>
         )}
+        {pager}
       </Card>
       <Drawer open={!!open} onClose={() => setOpen(null)} title={open?.subject ?? 'Message'} subtitle={open ? `To ${open.to} · ${STATUS_WORD[open.status] ?? open.status}` : undefined}>
-        {open && <div className="bg-white rounded-xl border border-[#E2E8F0] p-4 text-sm whitespace-pre-line">{open.body}</div>}
+        {open && <div className="bg-white rounded-lg border border-[#E2E8F0] p-4 text-sm whitespace-pre-line">{open.body}</div>}
       </Drawer>
     </>
   );

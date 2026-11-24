@@ -77,8 +77,8 @@ export const OrderPanel: React.FC<{ orderId: string | null; onClose: () => void;
       subtitle={o ? `Placed ${dateTime(o.placedAt ?? o.createdAt)}${s ? ` · ${s.help}` : ''}` : undefined}
       footer={o && (
         <>
-          {go && ['placed', 'picking'].includes(o.status) && hasPermission('packing_queue') && <Button icon={<PackageCheck className="w-4 h-4" />} onClick={() => go('picking', o.id)}>Pick this order</Button>}
-          {go && ['paid', 'out_for_delivery'].includes(o.status) && hasPermission('orders_dispatch') && <Button icon={<Truck className="w-4 h-4" />} onClick={() => go('deliveries')}>Go to deliveries</Button>}
+          {go && ['placed', 'picking'].includes(o.status) && hasPermission('packing_queue') && <Button icon={<PackageCheck className="w-4 h-4" />} onClick={() => go('orders', `pick/${o.id}`)}>Pick this order</Button>}
+          {go && ['paid', 'out_for_delivery'].includes(o.status) && hasPermission('orders_dispatch') && <Button icon={<Truck className="w-4 h-4" />} onClick={() => go('orders')}>Open the order board</Button>}
           {o.customer && hasPermission('customer_messaging') && <Button icon={<Mail className="w-4 h-4" />} onClick={() => setMessageOpen(true)}>Message customer</Button>}
           {canInvoice && <Button icon={<FileText className="w-4 h-4" />} onClick={() => void run('admin_issue_invoice', { p_order_id: o.id }, { success: 'Invoice issued' })}>Issue VAT invoice</Button>}
           {canRefund && <Button icon={<Undo2 className="w-4 h-4" />} onClick={() => setRefundOpen(true)}>Refund…</Button>}

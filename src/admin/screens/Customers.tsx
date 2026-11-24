@@ -3,8 +3,8 @@ import { Mail, Users } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
-import { useAction, useAdminQuery, usePaged, money, date, dateTime, errorText, type Paged } from '../lib';
-import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, NumberInput, OrderStatus, SampleTag, Screen, SearchInput, Select, Table, Td, TextArea, TextInput, Th, Tr } from '../ui';
+import { useAction, useAdminQuery, usePagedList, money, date, dateTime, errorText, type Paged } from '../lib';
+import { Badge, Button, Card, Chips, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, NumberInput, OrderStatus, SampleTag, Screen, SearchInput, Select, Table, Td, TextArea, TextInput, Th, Tr, Pager } from '../ui';
 import { MessageModal, OrderPanel } from '../OrderPanel';
 
 interface Row { id: string; name: string; tier: string | null; email: string; phone: string | null; points: number; status: string; hasLogin: boolean; isSample: boolean; orderCount: number; totalSpent: Money; lastOrderAt: string | null; memberSince: string; marketingEmail: boolean }
@@ -23,7 +23,7 @@ export default function CustomersScreen({ param, go }: ScreenProps) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [open, setOpen] = useState<string | null>(param);
-  const { first, items, isLoading, error, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = usePaged<Row, Paged<Row>>('admin_list_customers', { p_q: q || undefined, p_status: status || undefined });
+  const { items, isLoading, error, refetch, pager } = usePagedList<Row, Paged<Row>>('admin_list_customers', { p_q: q || undefined, p_status: status || undefined });
   return (
     <Screen
       title="Customers"
@@ -58,10 +58,7 @@ export default function CustomersScreen({ param, go }: ScreenProps) {
                 ))}
               </tbody>
             </Table>
-            <div className="flex items-center justify-between p-3 text-xs text-slate-500">
-              <span>Showing {items.length} of {first?.total ?? items.length}</span>
-              {hasNextPage && <Button size="sm" loading={isFetchingNextPage} onClick={() => void fetchNextPage()}>Show more</Button>}
-            </div>
+            <Pager {...pager} />
           </>
         )}
       </Card>

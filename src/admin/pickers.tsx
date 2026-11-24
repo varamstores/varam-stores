@@ -21,7 +21,7 @@ export const ProductPicker: React.FC<{ onPick: (p: PickedProduct) => void; place
     <div className="relative">
       <SearchInput value={q} onChange={setQ} placeholder={placeholder} />
       {q.trim().length >= 2 && (
-        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-lg shadow-xl max-h-80 overflow-y-auto">
+        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-[#E2E8F0] rounded-md shadow-xl max-h-80 overflow-y-auto">
           {isFetching && !data ? <div className="p-3 text-sm text-slate-500 flex gap-2"><Loader2 className="w-4 h-4 animate-spin" />Searching…</div>
             : items.length === 0 ? <div className="p-3 text-sm text-slate-500">No products match “{q}”.</div>
             : items.map((p) => (
@@ -85,7 +85,7 @@ export const MediaPicker: React.FC<{ open: boolean; onClose: () => void; onPick:
           <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-2">
             {data.items.map((m) => (
               <button key={m.path} type="button" onClick={() => { onPick(m.path, m.url); onClose(); }} title={m.path}
-                className="group aspect-square rounded-lg border border-[#E2E8F0] overflow-hidden bg-slate-50 hover:ring-2 hover:ring-[#F5D103] cursor-pointer relative">
+                className="group aspect-square rounded-md border border-[#E2E8F0] overflow-hidden bg-slate-50 hover:ring-2 hover:ring-[#F5D103] cursor-pointer relative">
                 <img src={m.url} alt="" loading="lazy" className="w-full h-full object-contain" />
                 <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate opacity-0 group-hover:opacity-100">{m.path.split('/').pop()}</span>
               </button>
@@ -106,7 +106,7 @@ export const ImageField: React.FC<{ value: string | null | undefined; onChange: 
   const url = mediaUrl(value);
   return (
     <div className="flex items-center gap-3">
-      <div className={cx('bg-slate-100 border border-[#E2E8F0] rounded-lg overflow-hidden flex items-center justify-center shrink-0', aspect === 'square' ? 'w-20 h-20' : 'w-32 h-20')}>
+      <div className={cx('bg-slate-100 border border-[#E2E8F0] rounded-md overflow-hidden flex items-center justify-center shrink-0', aspect === 'square' ? 'w-20 h-20' : 'w-32 h-20')}>
         {url ? <img src={url} alt="" className="w-full h-full object-contain" /> : <ImagePlus className="w-6 h-6 text-slate-400" />}
       </div>
       <div className="flex flex-wrap gap-2">

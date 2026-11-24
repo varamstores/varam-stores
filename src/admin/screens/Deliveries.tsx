@@ -6,7 +6,7 @@ import { useAction, useAdminQuery, money, errorText, dateTime } from '../lib';
 import { Button, Card, Checkbox, Empty, ErrorState, Field, Loading, Modal, Notice, SampleTag, Screen, Select, Table, Td, Th, TextInput, Tr } from '../ui';
 import { OrderPanel, slotText, type SlotInfo, type StaffOrder } from '../OrderPanel';
 
-interface Row { id: string; orderNumber: string; customer: string; zone: string | null; postcode: string | null; slot: SlotInfo | null; status: string; total: Money; itemCount: number; van: string | null; isSample: boolean }
+export interface Row { id: string; orderNumber: string; customer: string; zone: string | null; postcode: string | null; slot: SlotInfo | null; status: string; total: Money; itemCount: number; van: string | null; isSample: boolean }
 interface Fleet { vans: Array<{ id: string; code: string; name: string; isActive: boolean }>; drivers: Array<{ id: string; name: string; isActive: boolean }> }
 
 export default function DeliveriesScreen({ go }: ScreenProps) {
@@ -77,7 +77,7 @@ export default function DeliveriesScreen({ go }: ScreenProps) {
   );
 }
 
-const SendOut: React.FC<{ order: Row; onClose: () => void }> = ({ order, onClose }) => {
+export const SendOut: React.FC<{ order: Row; onClose: () => void }> = ({ order, onClose }) => {
   const fleet = useAdminQuery<Fleet>('admin_list_fleet');
   const { run, busy } = useAction();
   const [van, setVan] = useState('');
@@ -118,7 +118,7 @@ const SendOut: React.FC<{ order: Row; onClose: () => void }> = ({ order, onClose
   );
 };
 
-const Deliver: React.FC<{ order: Row; onClose: () => void }> = ({ order, onClose }) => {
+export const Deliver: React.FC<{ order: Row; onClose: () => void }> = ({ order, onClose }) => {
   const detail = useAdminQuery<StaffOrder>('staff_get_order', { p_order_id: order.id });
   const { run, busy } = useAction();
   const [checked, setChecked] = useState(false);

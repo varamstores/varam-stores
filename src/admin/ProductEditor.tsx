@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ExternalLink, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAction, useAdminQuery, dateTime, pence, errorText, mediaUrl } from './lib';
 import {
-  Badge, Button, Card, Checkbox, ConfirmButton, Drawer, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, SampleTag, Select, Table, Tabs, Td, TextArea, TextInput, Th, Thumb,
+  Badge, Button, Card, Checkbox, ConfirmButton, Drawer, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, SampleTag, Select, Table, Tabs, Td, TextArea, TextInput, Th, Thumb, WeightInput,
 } from './ui';
 import { MediaPicker } from './pickers';
 import { useLookups, type Lookups } from './lookups';
@@ -149,9 +149,9 @@ const DetailsForm: React.FC<{ lookups: Lookups; initial: Details; isNew?: boolea
           <Field label="Most per order" optional help="Leave empty for the shop-wide limit."><NumberInput value={d.maxPerOrder} onChange={(v) => set('maxPerOrder', v)} min={1} disabled={!canEdit} /></Field>
           {d.saleUnit === 'weight' && (
             <>
-              <Field label="Typical weight" help="Used for the estimated price."><NumberInput value={d.estimatedWeightGrams} onChange={(v) => set('estimatedWeightGrams', v)} suffix="grams" disabled={!canEdit} /></Field>
-              <Field label="Smallest amount a shopper can order"><NumberInput value={d.minWeightGrams} onChange={(v) => set('minWeightGrams', v)} suffix="grams" disabled={!canEdit} /></Field>
-              <Field label="Shoppers choose in steps of"><NumberInput value={d.weightStepGrams} onChange={(v) => set('weightStepGrams', v)} suffix="grams" disabled={!canEdit} /></Field>
+              <Field label="Typical weight" help="Used for the estimated price."><WeightInput value={d.estimatedWeightGrams} onChange={(v) => set('estimatedWeightGrams', v)} disabled={!canEdit} /></Field>
+              <Field label="Smallest amount a shopper can order"><WeightInput value={d.minWeightGrams} onChange={(v) => set('minWeightGrams', v)} disabled={!canEdit} /></Field>
+              <Field label="Shoppers choose in steps of"><WeightInput value={d.weightStepGrams} onChange={(v) => set('weightStepGrams', v)} disabled={!canEdit} /></Field>
             </>
           )}
           <Field label="Contents for the unit price" optional help="e.g. 5 kg → shows the price per kg.">
@@ -359,7 +359,7 @@ const PhotosTab: React.FC<{ p: Product; canEdit: boolean }> = ({ p, canEdit }) =
         {!images.length ? <p className="text-sm text-slate-500">No photos yet.</p> : (
           <ul className="space-y-2">
             {images.map((img, i) => (
-              <li key={`${img.path}-${i}`} className="flex items-center gap-3 rounded-lg border border-[#E2E8F0] p-2">
+              <li key={`${img.path}-${i}`} className="flex items-center gap-3 rounded-md border border-[#E2E8F0] p-2">
                 <Thumb src={mediaUrl(img.path)} size={64} />
                 <div className="flex-1 min-w-0">
                   {i === 0 && <Badge tone="yellow">Main photo</Badge>}

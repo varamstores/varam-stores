@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, Star, X } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAction, useAdminQuery, dateTime, errorText } from '../lib';
-import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, SampleTag, Screen } from '../ui';
+import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, SampleTag, Screen, usePager } from '../ui';
 
 interface Review {
   id: string; status: string; rating: number; body: string; displayName: string; isVerified: boolean; isSample: boolean; createdAt: string;
@@ -12,6 +12,7 @@ interface Review {
 export default function ReviewsScreen(_: ScreenProps) {
   const [status, setStatus] = useState('pending');
   const { data, isLoading, error, refetch } = useAdminQuery<Review[]>('admin_list_reviews', { p_status: status });
+  const { pageItems, pager } = usePager(data, 20);
   const { run, busy } = useAction();
   const decide = (id: string, s: 'approved' | 'rejected') => run('admin_moderate_review', { p_id: id, p_status: s }, { success: s === 'approved' ? 'Review published' : 'Review rejected', refresh: ['admin_list_reviews', 'admin_dashboard'] });
   return (
@@ -29,7 +30,7 @@ export default function ReviewsScreen(_: ScreenProps) {
         <Card><Empty icon={<Star className="w-5 h-5" />} title={status === 'pending' ? 'No reviews waiting' : 'No reviews here'} /></Card>
       ) : (
         <div className="grid md:grid-cols-2 gap-3">
-          {data.map((r) => (
+          {pageItems.map((r) => (
             <Card key={r.id}>
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -49,6 +50,7 @@ export default function ReviewsScreen(_: ScreenProps) {
           ))}
         </div>
       )}
+      {!!data?.length && <Card padded={false}>{pager}</Card>}
     </Screen>
   );
 }

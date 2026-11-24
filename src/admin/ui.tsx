@@ -14,7 +14,7 @@ import { dismiss, subscribe, type ToastItem } from './toast';
 export const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
 // ── areas ───────────────────────────────────────────────────────────────────────────────────────
-export type AreaName = 'Today' | 'Shop' | 'Customers' | 'Marketing' | 'Set-up';
+export type AreaName = 'Today' | 'Shop' | 'Customers' | 'Marketing' | 'Set-up' | 'Help';
 // Deep, muted colours (no neon): ochre, forest, navy, plum, graphite.
 export const AREA: Record<AreaName, { tile: string; text: string; dot: string; bar: string; icon: string; blurb: string }> = {
   Today: { tile: 'bg-[#9A5B13] text-white', text: 'text-[#9A5B13]', dot: 'bg-[#C98A3A]', bar: 'bg-[#9A5B13]', icon: 'text-[#D9A35E]', blurb: 'Orders coming in and going out' },
@@ -22,6 +22,7 @@ export const AREA: Record<AreaName, { tile: string; text: string; dot: string; b
   Customers: { tile: 'bg-[#2B4C7E] text-white', text: 'text-[#2B4C7E]', dot: 'bg-[#6A8BBF]', bar: 'bg-[#2B4C7E]', icon: 'text-[#8EA9D4]', blurb: 'People who shop with you' },
   Marketing: { tile: 'bg-[#743C63] text-white', text: 'text-[#743C63]', dot: 'bg-[#A8739A]', bar: 'bg-[#743C63]', icon: 'text-[#C495B6]', blurb: 'Offers, points and the website' },
   'Set-up': { tile: 'bg-[#4B5563] text-white', text: 'text-[#4B5563]', dot: 'bg-[#8B95A3]', bar: 'bg-[#4B5563]', icon: 'text-[#A3ACB8]', blurb: 'How the shop runs' },
+  Help: { tile: 'bg-[#18181B] text-[#F5D103]', text: 'text-[#18181B]', dot: 'bg-[#F5D103]', bar: 'bg-[#18181B]', icon: 'text-[#F5D103]', blurb: 'How everything works' },
 };
 interface AreaInfo { area: AreaName; icon: React.ElementType; label: string }
 export const AreaContext = createContext<AreaInfo | null>(null);
@@ -45,7 +46,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
     disabled={disabled || loading}
     title={title ?? (typeof rest['aria-label'] === 'string' ? rest['aria-label'] : undefined)}
     className={cx(
-      'inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#F5D103] whitespace-nowrap',
+      'inline-flex items-center justify-center gap-1.5 rounded-md font-semibold transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-[#F5D103] whitespace-nowrap',
       size === 'sm' ? 'h-8 px-2.5 text-[13px]' : 'h-10 px-4 text-sm',
       BTN[variant], className,
     )}
@@ -84,7 +85,7 @@ export const Screen: React.FC<{
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="flex items-start gap-4 min-w-0">
           {Icon && info && (
-            <div className={cx('w-12 h-12 rounded-xl flex items-center justify-center shrink-0', AREA[info.area].tile)}>
+            <div className={cx('w-12 h-12 rounded-lg flex items-center justify-center shrink-0', AREA[info.area].tile)}>
               <Icon className="w-6 h-6" strokeWidth={1.75} />
             </div>
           )}
@@ -107,7 +108,7 @@ export const Screen: React.FC<{
 
 /** "How this works": each list item becomes a small card; numbered when it is a sequence (<ol>). */
 const GuidePanel: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => (
-  <section aria-label="How this works" className="rounded-xl bg-[#1F2024] px-4 sm:px-5 py-4">
+  <section aria-label="How this works" className="rounded-lg bg-[#1F2024] px-4 sm:px-5 py-4">
     <div className="flex items-center gap-2 mb-3">
       <Lightbulb className="w-4 h-4 text-[#F5D103]" />
       <h2 className="text-sm font-semibold text-white">How this works</h2>
@@ -117,7 +118,7 @@ const GuidePanel: React.FC<{ onClose: () => void; children: React.ReactNode }> =
       'text-[13.5px] leading-snug text-[#C9CED6] [&_b]:font-semibold [&_b]:text-white',
       '[&_ol]:grid [&_ol]:gap-2.5 [&_ol]:sm:grid-cols-2 [&_ol]:xl:grid-cols-4 [&_ol]:[counter-reset:step]',
       '[&_ul]:grid [&_ul]:gap-2.5 [&_ul]:sm:grid-cols-2 [&_ul]:xl:grid-cols-4',
-      '[&_li]:bg-white/[0.05] [&_li]:rounded-lg [&_li]:border [&_li]:border-white/10 [&_li]:px-3 [&_li]:py-2.5',
+      '[&_li]:bg-white/[0.05] [&_li]:rounded-md [&_li]:border [&_li]:border-white/10 [&_li]:px-3 [&_li]:py-2.5',
       '[&_ol>li]:[counter-increment:step] [&_ol>li]:before:content-[counter(step)] [&_ol>li]:before:inline-flex [&_ol>li]:before:items-center [&_ol>li]:before:justify-center',
       '[&_ol>li]:before:w-5 [&_ol>li]:before:h-5 [&_ol>li]:before:rounded-full [&_ol>li]:before:bg-[#F5D103] [&_ol>li]:before:text-[#18181B] [&_ol>li]:before:text-[11px] [&_ol>li]:before:font-bold [&_ol>li]:before:mr-2 [&_ol>li]:before:align-[1px]',
       '[&_p]:max-w-3xl',
@@ -135,9 +136,9 @@ export const Guide: React.FC<{ id: string; children: React.ReactNode }> = ({ id,
 export const Card: React.FC<{ title?: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode; children?: React.ReactNode; className?: string; padded?: boolean }> = ({
   title, description, actions, children, className, padded = true,
 }) => (
-  <section className={cx('bg-white rounded-xl border border-[#D6DBE1] shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
+  <section className={cx('bg-white rounded-lg border border-[#D6DBE1] shadow-[0_1px_2px_rgba(16,24,40,0.04)]', className)}>
     {(title || actions) && (
-      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 bg-[#F6F7F9] border-b border-[#E2E6EB] rounded-t-xl">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 bg-[#F6F7F9] border-b border-[#E2E6EB] rounded-t-lg">
         <div className="min-w-0">
           {title && <h2 className="font-semibold text-[15px] text-[#18181B]">{title}</h2>}
           {description && <p className="text-[13px] text-[#5F6B7A] mt-0.5">{description}</p>}
@@ -159,10 +160,10 @@ export const Stat: React.FC<{ label: string; value: React.ReactNode; hint?: Reac
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className="group text-left bg-white rounded-xl border border-[#D6DBE1] p-4 w-full hover:border-[#18181B] cursor-pointer relative">
+    <button type="button" onClick={onClick} className="group text-left bg-white rounded-lg border border-[#D6DBE1] p-4 w-full hover:border-[#18181B] cursor-pointer relative">
       {body}<ChevronRight className="w-4 h-4 absolute top-4 right-3 text-[#C3C9D2] group-hover:text-[#18181B]" />
     </button>
-  ) : <div className="bg-white rounded-xl border border-[#D6DBE1] p-4">{body}</div>;
+  ) : <div className="bg-white rounded-lg border border-[#D6DBE1] p-4">{body}</div>;
 };
 
 // ── badges ──────────────────────────────────────────────────────────────────────────────────────
@@ -190,7 +191,7 @@ export const SampleTag: React.FC<{ show?: boolean }> = ({ show }) => (show
   : null);
 
 // ── form controls ───────────────────────────────────────────────────────────────────────────────
-const INPUT = 'w-full h-10 px-3 rounded-lg border border-[#D9DDE3] bg-white text-[14px] text-[#18181B] placeholder:text-[#9AA3AF] focus:outline-none focus:ring-2 focus:ring-[#F5D103]/70 focus:border-[#C9A800] disabled:bg-[#F6F7F9] disabled:text-[#7A8594]';
+const INPUT = 'w-full h-10 px-3 rounded-md border border-[#D9DDE3] bg-white text-[14px] text-[#18181B] placeholder:text-[#9AA3AF] focus:outline-none focus:ring-2 focus:ring-[#F5D103]/70 focus:border-[#C9A800] disabled:bg-[#F6F7F9] disabled:text-[#7A8594]';
 
 export const Field: React.FC<{ label: React.ReactNode; help?: React.ReactNode; error?: string | null; optional?: boolean; children: React.ReactNode; className?: string }> = ({
   label, help, error, optional, children, className,
@@ -272,27 +273,166 @@ export const MoneyInput: React.FC<{ value: number | null | undefined; onChange: 
   );
 };
 
-export interface Option { value: string; label: string; hint?: string }
-export const Select: React.FC<{ value: string | null | undefined; onChange: (v: string) => void; options: Option[]; placeholder?: string; disabled?: boolean; className?: string; 'aria-label'?: string }> = ({
-  value, onChange, options, placeholder, disabled, className, ...rest
-}) => (
-  <div className={cx('relative', className)}>
-    <select value={value ?? ''} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-label={rest['aria-label']} className={cx(INPUT, 'appearance-none pr-9 cursor-pointer')}>
-      {placeholder !== undefined && <option value="">{placeholder}</option>}
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
-    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#7A8594] pointer-events-none" />
-  </div>
-);
+export interface Option { value: string; label: string; hint?: string; group?: string; icon?: React.ReactNode }
+
+/**
+ * A drop-down that looks the same on every computer and phone (no browser-native list): a button
+ * showing the choice, and a list that opens below it. Long lists get a search box. Keyboard:
+ * arrows move, Enter picks, Escape closes.
+ */
+export const Select: React.FC<{
+  value: string | null | undefined; onChange: (v: string) => void; options: Option[]; placeholder?: string; disabled?: boolean; className?: string;
+  'aria-label'?: string; searchable?: boolean; size?: 'sm' | 'md';
+}> = ({ value, onChange, options, placeholder, disabled, className, searchable, size = 'md', ...rest }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [active, setActive] = useState(0);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number; up: boolean; maxH: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  const all: Option[] = placeholder !== undefined ? [{ value: '', label: placeholder }, ...options] : options;
+  const current = all.find((o) => o.value === (value ?? ''));
+  const withSearch = searchable ?? options.length > 8;
+  const shown = q.trim() ? all.filter((o) => `${o.label} ${o.hint ?? ''} ${o.group ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())) : all;
+
+  const place = () => {
+    const r = btn.current?.getBoundingClientRect();
+    if (!r) return;
+    const below = window.innerHeight - r.bottom - 8;
+    const up = below < 240 && r.top > below;
+    setPos({ left: r.left, top: up ? r.top - 4 : r.bottom + 4, width: Math.max(r.width, 220), up, maxH: Math.max(160, Math.min(360, (up ? r.top : below) - 12)) });
+  };
+  useEffect(() => {
+    if (!open) return;
+    place();
+    const onDoc = (e: MouseEvent) => { if (!pop.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setOpen(false); };
+    const onMove = () => place();
+    document.addEventListener('mousedown', onDoc);
+    window.addEventListener('resize', onMove);
+    window.addEventListener('scroll', onMove, true);
+    return () => { document.removeEventListener('mousedown', onDoc); window.removeEventListener('resize', onMove); window.removeEventListener('scroll', onMove, true); };
+  }, [open]);
+  useEffect(() => { if (open) { setQ(''); setActive(Math.max(0, all.findIndex((o) => o.value === (value ?? '')))); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const choose = (o: Option) => { onChange(o.value); setOpen(false); btn.current?.focus(); };
+  const onKey = (e: React.KeyboardEvent) => {
+    if (!open && ['ArrowDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); setOpen(true); return; }
+    if (!open) return;
+    if (e.key === 'Escape') { e.preventDefault(); setOpen(false); btn.current?.focus(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(shown.length - 1, a + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+    else if (e.key === 'Enter' && shown[active]) { e.preventDefault(); choose(shown[active]); }
+  };
+  useEffect(() => { pop.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' }); }, [active]);
+
+  return (
+    <div className={cx('relative', className)}>
+      <button ref={btn} type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} onKeyDown={onKey}
+        aria-haspopup="listbox" aria-expanded={open} aria-label={rest['aria-label']}
+        className={cx(INPUT, 'flex items-center gap-2 text-left pr-9 cursor-pointer disabled:cursor-not-allowed', size === 'sm' && 'h-8 text-[13px]', open && 'ring-2 ring-[#F5D103]/70 border-[#C9A800]')}>
+        {current?.icon}
+        <span className={cx('truncate flex-1', (!current || current.value === '') && placeholder !== undefined && 'text-[#7A8594]')}>{current?.label ?? placeholder ?? 'Choose…'}</span>
+        <ChevronDown className={cx('w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#5F6B7A] transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && pos && createPortal(
+        <div ref={pop} role="listbox" onKeyDown={onKey}
+          className="fixed z-[120] bg-white rounded-md border border-[#C4CAD3] shadow-[0_12px_32px_rgba(16,24,40,0.18)] flex flex-col overflow-hidden"
+          style={{ left: Math.min(pos.left, window.innerWidth - pos.width - 8), width: pos.width, maxWidth: 'calc(100vw - 16px)', ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }), maxHeight: pos.maxH }}>
+          {withSearch && (
+            <div className="p-2 border-b border-[#E8EBEF]">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A8594]" />
+                <input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setActive(0); }} onKeyDown={onKey} placeholder="Type to search…"
+                  className="w-full h-9 pl-8 pr-2 rounded-md border border-[#C4CAD3] text-[14px] focus:outline-none focus:ring-2 focus:ring-[#F5D103]/70" />
+              </div>
+            </div>
+          )}
+          <div className="overflow-y-auto py-1">
+            {shown.length === 0 && <div className="px-3 py-2.5 text-[13.5px] text-[#5F6B7A]">Nothing matches “{q}”.</div>}
+            {shown.map((o, i) => (
+              <React.Fragment key={`${o.value}-${i}`}>
+                {o.group && o.group !== shown[i - 1]?.group && <div className="px-3 pt-2.5 pb-1 text-[12px] font-semibold text-[#5F6B7A]">{o.group}</div>}
+                <button type="button" role="option" aria-selected={o.value === (value ?? '')} data-index={i} onMouseEnter={() => setActive(i)} onClick={() => choose(o)}
+                  className={cx('w-full flex items-center gap-2 px-3 py-2 text-left text-[14px] cursor-pointer', i === active ? 'bg-[#F3F4F6]' : '', o.value === (value ?? '') && 'font-semibold')}>
+                  {o.icon}
+                  <span className="flex-1 min-w-0"><span className="block truncate">{o.label}</span>{o.hint && <span className="block text-[12px] text-[#7A8594] truncate font-normal">{o.hint}</span>}</span>
+                  {o.value === (value ?? '') && <CheckCircle2 className="w-4 h-4 text-[#2F6B4F] shrink-0" />}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+};
+
+/** Grams or kilos, the shopper's choice; the value is always stored in grams. */
+export const WeightInput: React.FC<{ value: number | null | undefined; onChange: (grams: number | null) => void; disabled?: boolean; className?: string }> = ({ value, onChange, disabled, className }) => {
+  const [unit, setUnit] = useState<'g' | 'kg'>(value != null && value >= 1000 ? 'kg' : 'g');
+  const shown = value == null ? null : unit === 'kg' ? Number((value / 1000).toFixed(3)) : value;
+  return (
+    <div className={cx('flex', className)}>
+      <NumberInput decimals={unit === 'kg'} value={shown} disabled={disabled} className="flex-1 [&_input]:rounded-r-none"
+        onChange={(v) => onChange(v == null ? null : unit === 'kg' ? Math.round(v * 1000) : Math.round(v))} />
+      <div role="radiogroup" aria-label="Unit" className="flex shrink-0">
+        {(['g', 'kg'] as const).map((u, i) => (
+          <button key={u} type="button" role="radio" aria-checked={unit === u} disabled={disabled} onClick={() => setUnit(u)}
+            className={cx('h-10 px-3 text-[13px] font-semibold border border-[#C4CAD3] cursor-pointer -ml-px', i === 1 && 'rounded-r-md',
+              unit === u ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#3F4652] hover:bg-[#F3F4F6]')}>
+            {u === 'g' ? 'grams' : 'kilos'}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** Page numbers under a list: "Showing 26–50 of 94", previous / next, and page buttons. */
+export const Pager: React.FC<{ page: number; pageCount: number; onPage: (p: number) => void; total: number; size: number; loading?: boolean }> = ({ page, pageCount, onPage, total, size, loading }) => {
+  if (total <= size && page === 0) return total ? <div className="px-4 py-3 text-[13px] text-[#5F6B7A] border-t border-[#E8EBEF]">{total} in total</div> : null;
+  const nums: Array<number | '…'> = [];
+  for (let i = 0; i < pageCount; i++) {
+    if (i === 0 || i === pageCount - 1 || Math.abs(i - page) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+  return (
+    <nav aria-label="Pages" className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t border-[#E8EBEF]">
+      <span className="text-[13px] text-[#5F6B7A]">Showing {Math.min(total, page * size + 1)}–{Math.min(total, (page + 1) * size)} of {total}</span>
+      <div className="flex items-center gap-1">
+        <Button size="sm" disabled={page === 0 || loading} onClick={() => onPage(page - 1)}>‹ Previous</Button>
+        {nums.map((n, i) => n === '…' ? <span key={`e${i}`} className="px-1.5 text-[#7A8594]">…</span> : (
+          <button key={n} type="button" aria-current={n === page ? 'page' : undefined} disabled={loading} onClick={() => onPage(n)}
+            className={cx('min-w-8 h-8 px-2 rounded-md text-[13px] font-semibold cursor-pointer', n === page ? 'bg-[#18181B] text-white' : 'text-[#3F4652] hover:bg-[#F3F4F6]')}>{n + 1}</button>
+        ))}
+        <Button size="sm" disabled={page >= pageCount - 1 || loading} onClick={() => onPage(page + 1)}>Next ›</Button>
+      </div>
+    </nav>
+  );
+};
+
+/** Splits a list already in memory into pages of `size`. Goes back to page 1 when the list changes. */
+export function usePager<T>(items: T[] | undefined, size = 25) {
+  const list = items ?? [];
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(list.length / size));
+  useEffect(() => { if (page > pageCount - 1) setPage(0); }, [page, pageCount]);
+  const p = Math.min(page, pageCount - 1);
+  return {
+    pageItems: list.slice(p * size, (p + 1) * size),
+    pager: <Pager page={p} pageCount={pageCount} onPage={setPage} total={list.length} size={size} />,
+  };
+}
 
 /** A row of mutually exclusive choices (e.g. "Everyone · Computers only · Phones only · Nobody"). */
 export const Segmented: React.FC<{ value: string; onChange: (v: string) => void; options: Array<{ value: string; label: string; icon?: React.ReactNode }>; disabled?: boolean; size?: 'sm' | 'md' }> = ({
   value, onChange, options, disabled, size = 'md',
 }) => (
-  <div role="radiogroup" className="inline-flex flex-wrap gap-1 p-1 rounded-xl bg-[#EEF0F3]">
+  <div role="radiogroup" className="inline-flex flex-wrap gap-1 p-1 rounded-lg bg-[#EEF0F3]">
     {options.map((o) => (
       <button key={o.value} type="button" role="radio" aria-checked={value === o.value} disabled={disabled} onClick={() => onChange(o.value)}
-        className={cx('inline-flex items-center gap-1.5 rounded-lg font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+        className={cx('inline-flex items-center gap-1.5 rounded-md font-medium cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
           size === 'sm' ? 'h-7 px-2.5 text-[12.5px]' : 'h-9 px-3 text-[13.5px]',
           value === o.value ? 'bg-white text-[#18181B] shadow-[0_1px_2px_rgba(16,24,40,0.12)]' : 'text-[#4A5361] hover:text-[#18181B]')}>
         {o.icon}{o.label}
@@ -351,7 +491,7 @@ export const SearchInput: React.FC<{ value: string; onChange: (v: string) => voi
   return (
     <div className={cx('relative', className)}>
       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7A8594]" />
-      <input autoFocus={autoFocus} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder} className={cx(INPUT, 'pl-9 pr-8 bg-[#F6F7F9] border-transparent focus:bg-white')} />
+      <input autoFocus={autoFocus} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} aria-label={placeholder} className={cx(INPUT, 'pl-9 pr-8')} />
       {text && (
         <button type="button" aria-label="Clear search" onClick={() => { setText(''); onChange(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#7A8594] hover:text-[#18181B] cursor-pointer">
           <X className="w-3.5 h-3.5" />
@@ -371,7 +511,7 @@ export const Chips: React.FC<{ value: string; onChange: (v: string) => void; opt
         role="radio"
         aria-checked={value === o.value}
         onClick={() => onChange(o.value)}
-        className={cx('h-8 px-3 rounded-lg border text-[13px] font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5',
+        className={cx('h-8 px-3 rounded-md border text-[13px] font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5',
           value === o.value ? 'bg-[#18181B] text-white border-[#18181B]' : 'bg-white text-[#3F4652] border-[#C4CAD3] hover:border-[#18181B]')}
       >
         {o.label}{o.count != null && <span className={cx('tabular-nums text-[12px]', value === o.value ? 'text-[#F5D103]' : 'text-[#7A8594]')}>{o.count}</span>}
@@ -436,7 +576,7 @@ export const ErrorState: React.FC<{ error: unknown; onRetry?: () => void; text: 
 
 export const Empty: React.FC<{ icon?: React.ReactNode; title: string; text?: React.ReactNode; action?: React.ReactNode }> = ({ icon, title, text, action }) => (
   <div className="flex flex-col items-center text-center gap-2 py-14 px-4">
-    {icon && <div className="w-12 h-12 rounded-xl bg-[#F1F3F5] flex items-center justify-center text-[#5F6B7A] mb-1">{icon}</div>}
+    {icon && <div className="w-12 h-12 rounded-lg bg-[#F1F3F5] flex items-center justify-center text-[#5F6B7A] mb-1">{icon}</div>}
     <p className="font-semibold text-[15px]">{title}</p>
     {text && <p className="text-[14px] text-[#5F6B7A] max-w-md">{text}</p>}
     {action && <div className="mt-2">{action}</div>}
@@ -453,7 +593,7 @@ export const Notice: React.FC<{ tone?: 'info' | 'warning' | 'success' | 'danger'
   const iconTone = { info: 'text-[#2B4C7E]', warning: 'text-[#9A5B13]', success: 'text-[#2F6B4F]', danger: 'text-[#A63A3A]' }[tone];
   const Icon = tone === 'success' ? CheckCircle2 : tone === 'info' ? Info : AlertTriangle;
   return (
-    <div className={cx('flex flex-wrap sm:flex-nowrap items-start gap-2.5 rounded-xl border border-l-4 px-4 py-3 text-[14px]', styles)}>
+    <div className={cx('flex flex-wrap sm:flex-nowrap items-start gap-2.5 rounded-lg border border-l-4 px-4 py-3 text-[14px]', styles)}>
       <Icon className={cx('w-4 h-4 mt-0.5 shrink-0', iconTone)} />
       <div className="flex-1 min-w-0">{children}</div>
       {action && <div className="shrink-0">{action}</div>}
@@ -520,11 +660,11 @@ export const Modal: React.FC<{ open: boolean; onClose: () => void; title: React.
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="absolute inset-0 bg-[#0F1115]/50" onClick={onClose} />
-      <div role="dialog" aria-modal="true" className={cx('relative bg-white w-full rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh]',
+      <div role="dialog" aria-modal="true" className={cx('relative bg-white w-full rounded-t-xl sm:rounded-xl shadow-2xl flex flex-col max-h-[92vh]',
         size === 'sm' ? 'sm:max-w-md' : size === 'md' ? 'sm:max-w-2xl' : 'sm:max-w-5xl')}>
         <header className="flex items-start gap-3 px-5 pt-5 pb-3">
           <h2 className="font-semibold text-[18px] flex-1">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 -m-1 rounded-lg hover:bg-[#EEF0F3] cursor-pointer"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 -m-1 rounded-md hover:bg-[#EEF0F3] cursor-pointer"><X className="w-5 h-5" /></button>
         </header>
         <div className="px-5 pb-5 overflow-y-auto space-y-4">{children}</div>
         {footer && <footer className="px-5 py-3 border-t border-[#E4E7EC] flex flex-wrap justify-end gap-2">{footer}</footer>}
@@ -572,7 +712,7 @@ export const Toaster: React.FC = () => {
   return createPortal(
     <div aria-live="polite" className="fixed z-[100] bottom-4 right-4 left-4 sm:left-auto flex flex-col gap-2 sm:w-96 pointer-events-none">
       {items.map((t) => (
-        <div key={t.id} role="status" className={cx('pointer-events-auto flex items-start gap-2.5 rounded-xl px-4 py-3 shadow-xl text-[14px] border',
+        <div key={t.id} role="status" className={cx('pointer-events-auto flex items-start gap-2.5 rounded-lg px-4 py-3 shadow-xl text-[14px] border',
           t.kind === 'error' ? 'bg-[#A63A3A] text-white border-[#8A2B2B]' : 'bg-[#18181B] text-white border-black')}>
           {t.kind === 'error' ? <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> : <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-[#F5D103]" />}
           <span className="flex-1">{t.text}</span>
@@ -586,7 +726,7 @@ export const Toaster: React.FC = () => {
 
 /** Small square product/brand picture with a fallback. */
 export const Thumb: React.FC<{ src?: string | null; alt?: string; size?: number; rounded?: boolean }> = ({ src, alt = '', size = 40, rounded }) => (
-  <div className={cx('shrink-0 bg-[#F1F3F5] border border-[#E4E7EC] overflow-hidden flex items-center justify-center', rounded ? 'rounded-full' : 'rounded-lg')} style={{ width: size, height: size }}>
+  <div className={cx('shrink-0 bg-[#F1F3F5] border border-[#E4E7EC] overflow-hidden flex items-center justify-center', rounded ? 'rounded-full' : 'rounded-md')} style={{ width: size, height: size }}>
     {src ? <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover" /> : <ImageOff aria-label="No photo" className="w-1/2 h-1/2 max-w-5 max-h-5 text-[#C3C9D2]" />}
   </div>
 );

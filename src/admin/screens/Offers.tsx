@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, money, pence, date, errorText, downloadText } from '../lib';
-import { Badge, Button, Card, Checkbox, Chips, Drawer, Empty, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, Screen, Select, Table, Td, TextArea, TextInput, Th, Toggle, Tr, cx } from '../ui';
+import { Badge, Button, Card, Checkbox, Chips, Drawer, Empty, ErrorState, Field, Loading, MoneyInput, Notice, NumberInput, Screen, Select, Table, Td, TextArea, TextInput, Th, Toggle, Tr, cx, usePager } from '../ui';
 import { ProductPicker } from '../pickers';
 import { useLookups } from '../lookups';
 
@@ -46,6 +46,7 @@ export function describeOffer(o: Pick<Offer, 'type' | 'scope' | 'percent' | 'amo
 export default function OffersScreen(_: ScreenProps) {
   const [status, setStatus] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Offer[]>('admin_list_promotions', { p_status: status || undefined });
+  const { pageItems, pager } = usePager(data, 25);
   const [open, setOpen] = useState<string | 'new' | null>(null);
   return (
     <Screen
@@ -67,7 +68,7 @@ export default function OffersScreen(_: ScreenProps) {
           <Table>
             <thead><tr><Th>Offer</Th><Th>Codes</Th><Th>Status</Th><Th className="text-right">Used</Th><Th className="text-right">Discount given</Th><Th>Runs</Th></tr></thead>
             <tbody>
-              {data.map((o) => (
+              {pageItems.map((o) => (
                 <Tr key={o.id} onClick={() => setOpen(o.id)}>
                   <Td><div className="font-medium">{o.label}</div><div className="text-xs text-slate-500">{describeOffer(o)}{o.firstOrderOnly ? ' · first order only' : ''}</div>{o.isLoyaltyReward && <Badge tone="violet">Loyalty reward</Badge>}</Td>
                   <Td className="text-xs">{o.requiresCoupon ? (o.coupons.length ? o.coupons.slice(0, 3).map((c) => <span key={c.id} className="font-mono mr-1">{c.code}</span>) : 'none yet') : <span className="text-slate-500">Automatic</span>}{o.coupons.length > 3 && ` +${o.coupons.length - 3}`}{o.personalCodes > 0 && <div className="text-slate-500">{o.personalCodes} personal</div>}</Td>
@@ -80,6 +81,7 @@ export default function OffersScreen(_: ScreenProps) {
             </tbody>
           </Table>
         )}
+        {pager}
       </Card>
       {open && <OfferEditor id={open === 'new' ? null : open} onClose={() => setOpen(null)} onCreated={(id) => setOpen(id)} />}
     </Screen>
@@ -116,7 +118,7 @@ const OfferForm: React.FC<{ existing: Offer | null; onClose: () => void; onCreat
       <Drawer open onClose={onClose} title="New offer" subtitle="What kind of offer is it?">
         <div className="grid sm:grid-cols-2 gap-3">
           {TYPES.map((t) => (
-            <button key={t.value} type="button" onClick={() => setType(t.value)} className="text-left bg-white rounded-xl border border-[#E2E8F0] p-4 hover:border-[#18181B] hover:bg-[#FEF9C3]/40 cursor-pointer">
+            <button key={t.value} type="button" onClick={() => setType(t.value)} className="text-left bg-white rounded-lg border border-[#E2E8F0] p-4 hover:border-[#18181B] hover:bg-[#FEF9C3]/40 cursor-pointer">
               <div className="font-semibold">{t.title}</div><div className="text-xs text-slate-500 mt-1">{t.example}</div>
             </button>
           ))}
@@ -263,7 +265,7 @@ const Codes: React.FC<{ offer: Offer }> = ({ offer }) => {
   return (
     <div className="mt-4 space-y-4">
       {offer.coupons.length > 0 && (
-        <Table className="border border-[#E2E8F0] rounded-lg max-h-72 overflow-y-auto">
+        <Table className="border border-[#E2E8F0] rounded-md max-h-72 overflow-y-auto">
           <thead><tr><Th>Code</Th><Th className="text-right">Used</Th><Th>On</Th></tr></thead>
           <tbody>
             {offer.coupons.map((c) => (
@@ -277,14 +279,14 @@ const Codes: React.FC<{ offer: Offer }> = ({ offer }) => {
         </Table>
       )}
       <div className="grid sm:grid-cols-2 gap-4">
-        <div className={cx('rounded-lg border border-[#E2E8F0] p-3 space-y-2')}>
+        <div className={cx('rounded-md border border-[#E2E8F0] p-3 space-y-2')}>
           <div className="text-sm font-semibold">Add a code</div>
           <div className="flex gap-2">
             <TextInput value={code} onChange={(v) => setCode(v.toUpperCase().replace(/[^A-Z0-9]/g, ''))} placeholder="e.g. SUMMER15" />
             <Button loading={busy} disabled={code.length < 3} onClick={async () => { const ok = await run('admin_create_coupons', { p_promotion_id: offer.id, p_codes: [code] }, { success: 'Code added', refresh }); if (ok !== undefined) setCode(''); }}>Add</Button>
           </div>
         </div>
-        <div className="rounded-lg border border-[#E2E8F0] p-3 space-y-2">
+        <div className="rounded-md border border-[#E2E8F0] p-3 space-y-2">
           <div className="text-sm font-semibold">Make single-use codes</div>
           <p className="text-xs text-slate-500">For leaflets or one-off apologies. Each works once.</p>
           <div className="flex gap-2">

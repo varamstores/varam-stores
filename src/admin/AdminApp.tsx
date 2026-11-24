@@ -1,13 +1,13 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import {
-  Award, Boxes, ClipboardList, ExternalLink, History, LayoutDashboard, LogOut, Mail, MapPin, Menu, Package, PackageCheck,
-  PanelsTopLeft, Percent, Settings, ShoppingBag, Star, Tags, Truck, Undo2, UserCog, Users, X,
+  Award, BadgeCheck, BookOpen, Boxes, ClipboardList, ExternalLink, History, LayoutDashboard, LogOut, Mail, MapPin, Menu, Package,
+  PanelsTopLeft, Percent, Settings, ShoppingBag, Star, Tags, Undo2, UserCog, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '../context/NavigationContext';
 import { authLinkType, supabase } from '../lib/supabase';
 import { rpc } from '../lib/api';
-import { AREA, AreaContext, Button, Field, Loading, Notice, TextInput, Toaster, cx, type AreaName } from './ui';
+import { AREA, AreaContext, Button, Field, Loading, Notice, Select, TextInput, Toaster, cx, type AreaName } from './ui';
 import { toast } from './toast';
 import { errorText } from './lib';
 
@@ -17,18 +17,18 @@ import { errorText } from './lib';
 export interface ScreenProps { param: string | null; go: (screen: string, param?: string) => void }
 type Lazy = React.LazyExoticComponent<React.ComponentType<ScreenProps>>;
 
-interface NavItem { key: string; label: string; icon: React.ElementType; group: string; perms: string[] | null; screen: Lazy }
+interface NavItem { key: string; label: string; icon: React.ElementType; group: string; perms: string[] | null; screen: Lazy; step?: number }
 
+// Shop screens are numbered in the order a new shop is set up: categories first, then brands, then products…
 const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Home', icon: LayoutDashboard, group: 'Today', perms: null, screen: lazy(() => import('./screens/Dashboard')) },
-  { key: 'orders', label: 'Orders', icon: ShoppingBag, group: 'Today', perms: ['order_status'], screen: lazy(() => import('./screens/Orders')) },
-  { key: 'picking', label: 'Picking', icon: PackageCheck, group: 'Today', perms: ['packing_queue'], screen: lazy(() => import('./screens/Picking')) },
-  { key: 'deliveries', label: 'Deliveries', icon: Truck, group: 'Today', perms: ['orders_dispatch'], screen: lazy(() => import('./screens/Deliveries')) },
+  { key: 'orders', label: 'Orders', icon: ShoppingBag, group: 'Today', perms: ['order_status', 'packing_queue', 'orders_dispatch'], screen: lazy(() => import('./screens/Orders')) },
   { key: 'refunds', label: 'Refunds', icon: Undo2, group: 'Today', perms: ['refund_requests', 'financials'], screen: lazy(() => import('./screens/Refunds')) },
-  { key: 'products', label: 'Products', icon: Package, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Products')) },
-  { key: 'catalogue', label: 'Categories & brands', icon: Tags, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Catalogue')) },
-  { key: 'stock', label: 'Stock', icon: Boxes, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Stock')) },
-  { key: 'buying', label: 'Suppliers & buying', icon: ClipboardList, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Buying')) },
+  { key: 'categories', label: 'Categories', icon: Tags, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Categories')), step: 1 },
+  { key: 'brands', label: 'Brands', icon: BadgeCheck, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Brands')), step: 2 },
+  { key: 'products', label: 'Products', icon: Package, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Products')), step: 3 },
+  { key: 'stock', label: 'Stock', icon: Boxes, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Stock')), step: 4 },
+  { key: 'buying', label: 'Suppliers & buying', icon: ClipboardList, group: 'Shop', perms: ['inventory_read'], screen: lazy(() => import('./screens/Buying')), step: 5 },
   { key: 'customers', label: 'Customers', icon: Users, group: 'Customers', perms: ['customer_messaging'], screen: lazy(() => import('./screens/Customers')) },
   { key: 'reviews', label: 'Reviews', icon: Star, group: 'Customers', perms: ['customer_messaging'], screen: lazy(() => import('./screens/Reviews')) },
   { key: 'emails', label: 'Emails', icon: Mail, group: 'Customers', perms: ['customer_messaging'], screen: lazy(() => import('./screens/Emails')) },
@@ -39,11 +39,14 @@ const NAV: NavItem[] = [
   { key: 'staff', label: 'Staff & roles', icon: UserCog, group: 'Set-up', perms: ['user_management'], screen: lazy(() => import('./screens/Staff')) },
   { key: 'settings', label: 'Settings', icon: Settings, group: 'Set-up', perms: ['full_access', 'financials'], screen: lazy(() => import('./screens/Settings')) },
   { key: 'activity', label: 'Activity log', icon: History, group: 'Set-up', perms: ['full_access'], screen: lazy(() => import('./screens/Activity')) },
+  { key: 'guide', label: 'Guide', icon: BookOpen, group: 'Help', perms: null, screen: lazy(() => import('./screens/Guide')) },
 ];
+/** Old addresses that moved into other screens. */
+const ALIASES: Record<string, string> = { picking: 'orders', deliveries: 'orders', catalogue: 'categories' };
 
 const Logo: React.FC = () => (
   <div className="flex items-center gap-2.5">
-    <div className="w-9 h-9 rounded-xl bg-[#F5D103] text-[#18181B] flex items-center justify-center font-extrabold">V</div>
+    <div className="w-9 h-9 rounded-lg bg-[#F5D103] text-[#18181B] flex items-center justify-center font-extrabold">V</div>
     <div className="leading-tight">
       <div className="font-extrabold text-sm tracking-tight">Varam Foods</div>
       <div className="text-[12px] text-[#F5D103] font-medium">Store portal</div>
@@ -71,7 +74,7 @@ class ScreenBoundary extends React.Component<{ children: React.ReactNode }, { fa
 // ── sign-in screens ─────────────────────────────────────────────────────────────────────────────
 const Centered: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="min-h-screen bg-[#18181B] flex items-center justify-center p-4">
-    <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-5">
+    <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl p-6 space-y-5">
       <div className="text-[#18181B] [&_.text-\[\#F5D103\]]:text-[#B45309]"><Logo /></div>
       {children}
     </div>
@@ -159,9 +162,12 @@ export default function AdminApp() {
   useEffect(() => { document.title = 'Store portal · Varam Foods'; }, []);
 
   const allowed = useMemo(() => NAV.filter((n) => !n.perms || n.perms.some((p) => hasPermission(p))), [hasPermission]);
-  const [screenKey, ...rest] = (subPath ?? 'dashboard').split('/');
+  const [rawKey, ...rest] = (subPath ?? 'dashboard').split('/');
+  // /admin/picking/<id> now opens that order's picking inside the order board
+  const screenKey = ALIASES[rawKey] ?? rawKey;
+  const aliasParam = rawKey === 'picking' && rest.length ? `pick/${rest.join('/')}` : null;
   const current = allowed.find((n) => n.key === screenKey) ?? allowed[0];
-  const param = current?.key === screenKey && rest.length ? rest.join('/') : null;
+  const param = current?.key === screenKey ? aliasParam ?? (rest.length && !ALIASES[rawKey] ? rest.join('/') : null) : null;
   const go = (screen: string, p?: string) => { setMenuOpen(false); goToAdmin(p ? `${screen}/${encodeURIComponent(p)}` : screen); };
 
   if (status === 'loading' || (status === 'signed_in' && !context)) return <div className="min-h-screen bg-[#18181B] flex items-center justify-center text-white"><Loading text="Opening the store portal…" /></div>;
@@ -200,9 +206,11 @@ export default function AdminApp() {
                 const active = n.key === current?.key;
                 return (
                   <button key={n.key} type="button" onClick={() => go(n.key)} aria-current={active ? 'page' : undefined}
-                    className={cx('w-full flex items-center gap-3 px-2.5 h-9 rounded-lg text-[14px] text-left cursor-pointer transition-colors',
+                    className={cx('w-full flex items-center gap-3 px-2.5 h-9 rounded-md text-[14px] text-left cursor-pointer transition-colors',
                       active ? 'bg-[#F5D103] text-[#18181B] font-semibold' : 'text-[#D4D8DE] hover:bg-white/[0.07] hover:text-white')}>
-                    <Icon className={cx('w-[18px] h-[18px] shrink-0', !active && AREA[n.group as AreaName].icon)} strokeWidth={1.9} />{n.label}
+                    <Icon className={cx('w-[18px] h-[18px] shrink-0', !active && AREA[n.group as AreaName].icon)} strokeWidth={1.9} />
+                    <span className="flex-1 truncate">{n.label}</span>
+                    {n.step && <span title={`Step ${n.step} of setting up the shop`} className={cx('w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0', active ? 'bg-[#18181B] text-[#F5D103]' : 'bg-white/10 text-[#C9CED6]')}>{n.step}</span>}
                   </button>
                 );
               })}
@@ -221,17 +229,10 @@ export default function AdminApp() {
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <select
-            aria-label="My status"
-            value={staff.status === 'deactivated' ? 'offline' : staff.status}
-            onChange={async (e) => { try { await rpc('staff_set_my_status', { p_status: e.target.value }); await refresh(); } catch (err) { toast.error(errorText(err)); } }}
-            className="flex-1 h-8 rounded-lg bg-white/[0.07] text-white text-[12.5px] px-2 border border-white/10 cursor-pointer"
-          >
-            <option value="active" className="text-black">Working</option>
-            <option value="on_break" className="text-black">On a break</option>
-            <option value="offline" className="text-black">Off shift</option>
-          </select>
-          <button type="button" onClick={() => void signOut()} className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-lg text-[12.5px] text-[#D4D8DE] hover:bg-white/[0.07] cursor-pointer"><LogOut className="w-3.5 h-3.5" />Sign out</button>
+          <Select size="sm" className="flex-1" aria-label="My status" value={staff.status === 'deactivated' ? 'offline' : staff.status}
+            onChange={async (v) => { try { await rpc('staff_set_my_status', { p_status: v }); await refresh(); } catch (err) { toast.error(errorText(err)); } }}
+            options={[{ value: 'active', label: 'Working' }, { value: 'on_break', label: 'On a break' }, { value: 'offline', label: 'Off shift' }]} />
+          <button type="button" onClick={() => void signOut()} className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-md text-[12.5px] text-[#D4D8DE] hover:bg-white/[0.07] cursor-pointer"><LogOut className="w-3.5 h-3.5" />Sign out</button>
         </div>
       </div>
     </nav>
@@ -249,7 +250,7 @@ export default function AdminApp() {
       )}
       <div className="lg:pl-[260px]">
         <header className="sticky top-0 z-20 h-14 bg-white/95 backdrop-blur border-b border-[#E4E7EC] flex items-center gap-3 px-4 sm:px-6 lg:px-8">
-          <button type="button" className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-[#EEF0F3] cursor-pointer" aria-label="Open menu" onClick={() => setMenuOpen(true)}><Menu className="w-5 h-5" /></button>
+          <button type="button" className="lg:hidden p-2 -ml-2 rounded-md hover:bg-[#EEF0F3] cursor-pointer" aria-label="Open menu" onClick={() => setMenuOpen(true)}><Menu className="w-5 h-5" /></button>
           {area && current && (
             <div className="flex items-center gap-2 text-[14px] min-w-0">
               <span className={cx('w-2 h-2 rounded-full shrink-0', AREA[area].dot)} />
@@ -258,7 +259,7 @@ export default function AdminApp() {
               <span className="font-medium truncate">{current.label}</span>
             </div>
           )}
-          <a href="/" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#D9DDE3] text-[13px] font-medium text-[#3F4652] hover:bg-[#F6F7F9]">Open the shop <ExternalLink className="w-3.5 h-3.5" /></a>
+          <a href="/" target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-[#D9DDE3] text-[13px] font-medium text-[#3F4652] hover:bg-[#F6F7F9]">Open the shop <ExternalLink className="w-3.5 h-3.5" /></a>
         </header>
         <main className="min-w-0 overflow-x-clip">
           {current ? (

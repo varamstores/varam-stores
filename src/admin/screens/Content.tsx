@@ -40,6 +40,10 @@ const AUDIENCE: Array<{ value: Audience; label: string; short: string }> = [
   { value: 'mobile', label: 'Phones only', short: 'Phones only' },
   { value: 'hidden', label: 'Nobody (hidden)', short: 'Hidden' },
 ];
+const AUDIENCE_ICON: Record<Audience, React.ReactNode> = {
+  all: <Eye className="w-4 h-4 text-[#2F6B4F] shrink-0" />, desktop: <Monitor className="w-4 h-4 text-[#2B4C7E] shrink-0" />,
+  mobile: <Smartphone className="w-4 h-4 text-[#2B4C7E] shrink-0" />, hidden: <EyeOff className="w-4 h-4 text-[#7A8594] shrink-0" />,
+};
 const audienceOf = (s: { enabled: boolean; desktop: boolean; mobile: boolean }): Audience =>
   !s.enabled || (!s.desktop && !s.mobile) ? 'hidden' : s.desktop && s.mobile ? 'all' : s.desktop ? 'desktop' : 'mobile';
 const audienceParams = (a: Audience) => a === 'hidden' ? { p_enabled: false }
@@ -87,7 +91,7 @@ export default function ContentScreen({ param }: ScreenProps) {
               <Select aria-label="Page" value={page?.key ?? ''} onChange={(v) => { setPageKey(v); setQ(''); }}
                 options={data.map((p) => ({ value: p.key, label: `${GROUPS.find((g) => g.kind === p.kind)?.title} › ${p.label}` }))} />
             </div>
-            <nav aria-label="Pages" className="hidden lg:block bg-white rounded-xl border border-[#E4E7EC] p-2">
+            <nav aria-label="Pages" className="hidden lg:block bg-white rounded-lg border border-[#E4E7EC] p-2">
               {GROUPS.map((g) => (
                 <div key={g.kind} className="mb-2 last:mb-0">
                   <div className="px-2.5 pt-2 pb-1">
@@ -99,7 +103,7 @@ export default function ContentScreen({ param }: ScreenProps) {
                     const active = p.key === page?.key && !searching;
                     return (
                       <button key={p.key} type="button" onClick={() => { setPageKey(p.key); setQ(''); }} aria-current={active ? 'page' : undefined}
-                        className={cx('w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-[14px] text-left cursor-pointer', active ? 'bg-[#18181B] text-white' : 'text-[#3F4652] hover:bg-[#F1F3F5]')}>
+                        className={cx('w-full flex items-center gap-2.5 px-2.5 h-9 rounded-md text-[14px] text-left cursor-pointer', active ? 'bg-[#18181B] text-white' : 'text-[#3F4652] hover:bg-[#F1F3F5]')}>
                         <Icon className={cx('w-4 h-4 shrink-0', active ? 'text-[#F5D103]' : 'text-[#7A8594]')} strokeWidth={1.75} />
                         <span className="truncate flex-1">{p.label}</span>
                         {p.kind === 'static' && !p.isPublished && <span className={cx('text-[11px]', active ? 'text-[#9AA3AF]' : 'text-[#9AA3AF]')}>hidden</span>}
@@ -171,13 +175,13 @@ const PageOutline: React.FC<{ page: PageInfo; onEdit: (section: string) => void 
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-[#743C63] text-white flex items-center justify-center shrink-0"><Icon className="w-5 h-5" strokeWidth={1.75} /></div>
+          <div className="w-11 h-11 rounded-lg bg-[#743C63] text-white flex items-center justify-center shrink-0"><Icon className="w-5 h-5" strokeWidth={1.75} /></div>
           <div className="min-w-0">
             <h2 className="text-[20px] font-semibold leading-tight">{page.label}</h2>
             {page.help && <p className="text-[13.5px] text-[#5F6B7A]">{page.help}</p>}
           </div>
         </div>
-        {route && <a href={route} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#D9DDE3] bg-white text-[13.5px] font-medium hover:bg-[#F6F7F9] shrink-0">Open this page <ExternalLink className="w-3.5 h-3.5" /></a>}
+        {route && <a href={route} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-[#D9DDE3] bg-white text-[13.5px] font-medium hover:bg-[#F6F7F9] shrink-0">Open this page <ExternalLink className="w-3.5 h-3.5" /></a>}
       </div>
 
       {page.kind === 'static' && (
@@ -199,11 +203,11 @@ const PageOutline: React.FC<{ page: PageInfo; onEdit: (section: string) => void 
               const aud = audienceOf(s);
               const mi = movable.findIndex((x) => x.key === s.key);
               return (
-                <li key={s.key} className={cx('bg-white rounded-xl border transition-colors', aud === 'hidden' ? 'border-dashed border-[#C3C9D2] bg-[#FAFBFC]' : 'border-[#E4E7EC] hover:border-[#9AA3AF]')}>
+                <li key={s.key} className={cx('bg-white rounded-lg border transition-colors', aud === 'hidden' ? 'border-dashed border-[#C3C9D2] bg-[#FAFBFC]' : 'border-[#E4E7EC] hover:border-[#9AA3AF]')}>
                   <div className="flex flex-col md:flex-row md:items-center gap-3 p-3 sm:p-4">
                     <button type="button" onClick={() => onEdit(s.key)} className="flex items-center gap-3.5 min-w-0 flex-1 text-left cursor-pointer group">
                       <span className="w-6 text-[13px] text-[#9AA3AF] tabular-nums text-right shrink-0">{idx + 1}</span>
-                      <span className={cx('w-24 h-16 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border border-[#EEF0F3]', aud === 'hidden' ? 'opacity-50' : '', s.preview.image ? 'bg-[#F1F3F5]' : 'bg-[#F6F7F9]')}>
+                      <span className={cx('w-24 h-16 rounded-md overflow-hidden shrink-0 flex items-center justify-center border border-[#EEF0F3]', aud === 'hidden' ? 'opacity-50' : '', s.preview.image ? 'bg-[#F1F3F5]' : 'bg-[#F6F7F9]')}>
                         {s.preview.image ? <img src={s.preview.image} alt="" loading="lazy" className="w-full h-full object-cover" /> : <Rows3 aria-label="No picture in this section" className="w-5 h-5 text-[#C3C9D2]" strokeWidth={1.5} />}
                       </span>
                       <span className="min-w-0">
@@ -213,20 +217,10 @@ const PageOutline: React.FC<{ page: PageInfo; onEdit: (section: string) => void 
                       </span>
                     </button>
                     <div className="flex flex-wrap items-center gap-2 md:justify-end pl-9 md:pl-0">
-                      <label className="sr-only" htmlFor={`aud-${s.key}`}>Who sees {s.label}</label>
-                      <div className="relative">
-                        {aud === 'hidden' ? <EyeOff className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A8594] pointer-events-none" />
-                          : aud === 'all' ? <Eye className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#2F6B4F] pointer-events-none" />
-                          : aud === 'desktop' ? <Monitor className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#2B4C7E] pointer-events-none" />
-                          : <Smartphone className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#2B4C7E] pointer-events-none" />}
-                        <select id={`aud-${s.key}`} value={aud} disabled={busy} onChange={(e) => void setAudience(s, e.target.value as Audience)}
-                          className="h-9 pl-8 pr-7 rounded-lg border border-[#D9DDE3] bg-white text-[13.5px] cursor-pointer appearance-none focus:outline-none focus:ring-2 focus:ring-[#F5D103]/70">
-                          {AUDIENCE.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-                        </select>
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7A8594] pointer-events-none text-[11px]">▾</span>
-                      </div>
+                      <Select size="sm" className="w-48" aria-label={`Who sees ${s.label}`} value={aud} disabled={busy} onChange={(v) => void setAudience(s, v as Audience)}
+                        options={AUDIENCE.map((x) => ({ value: x.value, label: x.label, icon: AUDIENCE_ICON[x.value] }))} />
                       {s.reorderable ? (
-                        <span className="inline-flex rounded-lg border border-[#D9DDE3] overflow-hidden">
+                        <span className="inline-flex rounded-md border border-[#D9DDE3] overflow-hidden">
                           <button type="button" title="Move up" aria-label={`Move ${s.label} up`} disabled={mi <= 0 || busy} onClick={() => move(s, -1)} className="h-9 w-9 flex items-center justify-center hover:bg-[#F6F7F9] disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"><ArrowUp className="w-4 h-4" /></button>
                           <button type="button" title="Move down" aria-label={`Move ${s.label} down`} disabled={mi === movable.length - 1 || busy} onClick={() => move(s, 1)} className="h-9 w-9 flex items-center justify-center border-l border-[#D9DDE3] hover:bg-[#F6F7F9] disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"><ArrowDown className="w-4 h-4" /></button>
                         </span>
@@ -267,7 +261,7 @@ const SeoCard: React.FC<{ page: PageInfo }> = ({ page }) => {
         </div>
         <div>
           <div className="text-[12.5px] text-[#5F6B7A] mb-2">Preview</div>
-          <div className="rounded-xl border border-[#E4E7EC] p-4 bg-white">
+          <div className="rounded-lg border border-[#E4E7EC] p-4 bg-white">
             <div className="text-[12.5px] text-[#3F4652]">varamfoods.co.uk{page.route ?? ''}</div>
             <div className="text-[18px] leading-snug text-[#1A0DAB] mt-0.5">{title || page.label} | Varam Foods</div>
             <div className="text-[13.5px] text-[#4D5156] mt-1 line-clamp-2">{desc || 'Add a description so Google shows something helpful here.'}</div>
@@ -293,7 +287,7 @@ const PreviewFrame: React.FC<{ src: string; device: 'desktop' | 'mobile'; versio
   const scale = Math.min(1, width / vw);
   return (
     <div ref={box} className="w-full">
-      <div className="mx-auto rounded-xl overflow-hidden border border-[#D9DDE3] bg-white shadow-sm" style={{ width: vw * scale, height: vh * scale }}>
+      <div className="mx-auto rounded-lg overflow-hidden border border-[#D9DDE3] bg-white shadow-sm" style={{ width: vw * scale, height: vh * scale }}>
         <iframe key={`${src}-${version}-${device}`} src={src} title="Preview of the page" style={{ width: vw, height: vh, transform: `scale(${scale})`, transformOrigin: 'top left', border: 0 }} />
       </div>
     </div>
@@ -400,7 +394,7 @@ const SectionEditor: React.FC<{ page: PageInfo; sectionKey: string; focus?: stri
                 const value = e.key in edits ? edits[e.key] : e.value;
                 const isChanged = e.key in edits;
                 return (
-                  <div key={e.key} id={`cms-${e.key}`} className={cx('bg-white rounded-xl border p-4 sm:p-5 scroll-mt-4', isChanged ? 'border-[#E5B800] ring-2 ring-[#F5D103]/40' : focus === e.key ? 'border-[#18181B]' : 'border-[#E4E7EC]')}>
+                  <div key={e.key} id={`cms-${e.key}`} className={cx('bg-white rounded-lg border p-4 sm:p-5 scroll-mt-4', isChanged ? 'border-[#E5B800] ring-2 ring-[#F5D103]/40' : focus === e.key ? 'border-[#18181B]' : 'border-[#E4E7EC]')}>
                     <FieldEditor schema={entrySchema(e)} value={value} label={e.label} help={e.help} onChange={(v) => setEdits((cur) => ({ ...cur, [e.key]: v }))} />
                     <div className="flex items-center gap-2 text-[12px] mt-3 text-[#7A8594]">
                       {isChanged ? <><Badge tone="yellow">Not saved yet</Badge><button type="button" className="underline cursor-pointer" onClick={() => setEdits(({ [e.key]: _x, ...rest }) => rest)}>undo</button></>
@@ -417,7 +411,7 @@ const SectionEditor: React.FC<{ page: PageInfo; sectionKey: string; focus?: stri
             <Segmented size="sm" value={device} onChange={(v) => setDevice(v as 'desktop' | 'mobile')} options={[{ value: 'desktop', label: 'Computer', icon: <Monitor className="w-3.5 h-3.5" /> }, { value: 'mobile', label: 'Phone', icon: <Smartphone className="w-3.5 h-3.5" /> }]} />
             <div className="flex gap-1.5">
               <Button size="sm" variant="ghost" icon={<RefreshCw className="w-3.5 h-3.5" />} onClick={() => setVersion((v) => v + 1)}>Refresh</Button>
-              <a href={previewSrc} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold text-[#3F4652] hover:bg-[#EEF0F3]">Open <ExternalLink className="w-3.5 h-3.5" /></a>
+              <a href={previewSrc} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-[13px] font-semibold text-[#3F4652] hover:bg-[#EEF0F3]">Open <ExternalLink className="w-3.5 h-3.5" /></a>
             </div>
           </div>
           <PreviewFrame src={previewSrc} device={device} version={version} />

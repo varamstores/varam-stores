@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, money, dateTime, errorText, newKey } from '../lib';
-import { Badge, Card, Chips, ConfirmButton, Empty, ErrorState, Loading, Screen, Table, Td, Th, Tr } from '../ui';
+import { Badge, Card, Chips, ConfirmButton, Empty, ErrorState, Loading, Screen, Table, Td, Th, Tr, usePager } from '../ui';
 import { OrderPanel } from '../OrderPanel';
 
 interface RefundRequest {
@@ -20,6 +20,7 @@ export default function RefundsScreen({ go }: ScreenProps) {
   const [status, setStatus] = useState('pending');
   const [open, setOpen] = useState<string | null>(null);
   const { data, isLoading, error, refetch } = useAdminQuery<RefundRequest[]>('admin_list_refund_requests', { p_status: status });
+  const { pageItems, pager } = usePager(data, 25);
   const { run } = useAction();
   const keys = useRef(new Map<string, string>());
   const keyFor = (id: string) => { if (!keys.current.has(id)) keys.current.set(id, newKey()); return keys.current.get(id)!; };
@@ -43,7 +44,7 @@ export default function RefundsScreen({ go }: ScreenProps) {
           <Table>
             <thead><tr><Th>Order</Th><Th>Refund</Th><Th>Reason</Th><Th>Asked by</Th><Th>Status</Th><Th /></tr></thead>
             <tbody>
-              {data.map((r) => (
+              {pageItems.map((r) => (
                 <Tr key={r.id}>
                   <Td><button type="button" className="font-semibold hover:underline cursor-pointer" onClick={() => setOpen(r.orderId)}>{r.orderNumber}</button><div className="text-xs text-slate-500">{r.customer}</div></Td>
                   <Td className="whitespace-nowrap font-semibold tabular-nums">{r.amount ? money(r.amount) : 'Chosen items'}{r.lines?.length ? <div className="text-xs font-normal text-slate-500">{r.lines.map((l) => l.name).join(', ')}</div> : null}</Td>
@@ -67,6 +68,7 @@ export default function RefundsScreen({ go }: ScreenProps) {
             </tbody>
           </Table>
         )}
+        {pager}
       </Card>
       <OrderPanel orderId={open} onClose={() => setOpen(null)} go={go} />
     </Screen>

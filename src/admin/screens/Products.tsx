@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Download, Package, Plus, Upload } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { rpc } from '../../lib/api';
-import { usePaged, money, errorText, downloadText, londonToday, type Paged } from '../lib';
-import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, SampleTag, Screen, SearchInput, Select, Table, Td, Th, Thumb, Tr } from '../ui';
+import { usePagedList, money, errorText, downloadText, londonToday, type Paged } from '../lib';
+import { Badge, Button, Card, Empty, ErrorState, Field, Loading, Pager, SampleTag, Screen, SearchInput, Segmented, Select, Table, Tabs, Td, Th, Thumb, Tr } from '../ui';
 import { CsvImport } from '../CsvImport';
 import { ProductEditor } from '../ProductEditor';
 import { useLookups } from '../lookups';
 import { toast } from '../toast';
+import { Shelves } from './Catalogue';
 
 interface ProductRow {
   id: string; sku: string; name: string; slug: string; brand: string | null; image: { url: string } | null; price: Money | null; issues: string[];
@@ -22,20 +23,12 @@ export const ISSUE: Record<string, { label: string; tone: 'amber' | 'red' }> = {
   low_stock: { label: 'Low stock', tone: 'amber' }, out_of_stock: { label: 'Out of stock', tone: 'red' },
 };
 
-export default function ProductsScreen({ param }: ScreenProps) {
+export default function ProductsScreen({ param, go }: ScreenProps) {
   const { hasPermission } = useAuth();
-  const lookups = useLookups();
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
-  const [issue, setIssue] = useState(param && param in ISSUE ? param : '');
-  const [category, setCategory] = useState('');
+  const [tab, setTab] = useState('products');
   const [editing, setEditing] = useState<string | 'new' | null>(param && !(param in ISSUE) ? param : null);
   const [importing, setImporting] = useState(false);
   const canEdit = hasPermission('inventory');
-  const { first, items, isLoading, error, refetch, hasNextPage, fetchNextPage, isFetchingNextPage } = usePaged<ProductRow, ProductList>('admin_list_products', {
-    p_q: q || undefined, p_status: status || undefined, p_issue: issue || undefined, p_category: category || undefined,
-  });
-  const c = first?.counts;
 
   const exportCsv = async () => {
     try { downloadText(`varam-products-${londonToday()}.csv`, await rpc<string>('admin_export_products_csv')); } catch (err) { toast.error(errorText(err)); }
@@ -44,70 +37,22 @@ export default function ProductsScreen({ param }: ScreenProps) {
   return (
     <Screen
       title="Products"
-      intro="Everything you sell: names, prices, photos, food information and stock."
+      intro="Step 3 of setting up the shop. Everything you sell: names, prices, photos, food information and stock."
       guide={<ol>
-        <li>Press <b>Add product</b> and answer six short steps: <b>category → brand → how it’s sold → name &amp; pack → price → photo</b>. A missing category or brand can be added on the way.</li>
-        <li>It is saved as a <b>draft</b>. Food needs <b>food information</b> by law (ingredients, allergens, nutrition): fill it in on the Food information tab.</li>
-        <li>Press <b>Put on sale</b>. It appears in the shop straight away. <b>Archive</b> hides it for good without losing its order history.</li>
-        <li>Many changes at once? <b>Download CSV</b>, edit it in Excel or Google Sheets, then <b>Upload CSV</b>. Every change and problem is shown before anything is saved.</li>
+        <li>Make sure your <b>categories</b> (step 1) and <b>brands</b> (step 2) are added first. A missing one can also be added while adding a product.</li>
+        <li>Press <b>Add product</b> and answer six short steps: <b>category → brand → how it’s sold → name → price → photos</b>. It is saved as a <b>draft</b>.</li>
+        <li>Food needs <b>food information</b> by law (ingredients, allergens, nutrition). Fill it in, then press <b>Put on sale</b>.</li>
+        <li>Many changes at once? <b>Download CSV</b>, edit it in Excel or Google Sheets, then <b>Upload CSV</b>. Every change is shown before anything is saved.</li>
       </ol>}
       actions={<>
+        <Button onClick={() => go('brands')}>‹ Brands</Button>
         <Button icon={<Download className="w-4 h-4" />} onClick={() => void exportCsv()}>Download CSV</Button>
         {canEdit && <Button icon={<Upload className="w-4 h-4" />} onClick={() => setImporting(true)}>Upload CSV</Button>}
         {canEdit && <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setEditing('new')}>Add product</Button>}
       </>}
     >
-      <Card padded={false}>
-        <div className="p-4 space-y-3 border-b border-slate-100">
-          <div className="flex flex-col md:flex-row gap-2">
-            <SearchInput value={q} onChange={setQ} placeholder="Search by name or SKU…" className="flex-1" />
-            <Select value={category} onChange={setCategory} placeholder="All categories" className="md:w-72"
-              options={(lookups.data?.categories ?? []).map((x) => ({ value: x.slug, label: x.path }))} />
-          </div>
-          <div className="flex flex-col lg:flex-row gap-2 lg:items-center justify-between">
-            <div className="flex items-center gap-2.5 flex-wrap"><span className="text-[13px] text-[#5F6B7A]">Show</span><Chips value={status} onChange={setStatus} options={[
-              { value: '', label: 'All' }, { value: 'active', label: 'On sale', count: c?.active }, { value: 'draft', label: 'Drafts', count: c?.draft }, { value: 'archived', label: 'Archived', count: c?.archived },
-            ]} /></div>
-            <div className="flex items-center gap-2.5 flex-wrap"><span className="text-[13px] text-[#5F6B7A]">Needs fixing</span><Chips value={issue} onChange={setIssue} options={[
-              { value: '', label: 'Any' }, { value: 'food_info', label: 'Food info missing', count: c?.foodInfoMissing }, { value: 'no_price', label: 'No price', count: c?.noPrice },
-              { value: 'no_image', label: 'No photo' }, { value: 'low_stock', label: 'Low stock', count: c?.lowStock }, { value: 'out_of_stock', label: 'Out of stock' },
-            ]} /></div>
-          </div>
-        </div>
-        {isLoading ? <Loading /> : error ? <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} /> : !items.length ? (
-          <Empty icon={<Package className="w-5 h-5" />} title="No products found" text="Try clearing the search or filters." />
-        ) : (
-          <>
-            <Table>
-              <thead><tr><Th>Product</Th><Th>Category</Th><Th className="text-right">Price</Th><Th className="text-right">Available</Th><Th>Status</Th></tr></thead>
-              <tbody>
-                {items.map((p) => (
-                  <Tr key={p.id} onClick={() => setEditing(p.id)}>
-                    <Td>
-                      <div className="flex items-center gap-3">
-                        <Thumb src={p.image?.url} />
-                        <div className="min-w-0">
-                          <div className="font-medium truncate max-w-[22rem]">{p.name}</div>
-                          <div className="text-xs text-slate-500">{p.sku}{p.packSize ? ` · ${p.packSize}` : ''}{p.brand ? ` · ${p.brand}` : ''}</div>
-                          {p.issues.length > 0 && <div className="flex flex-wrap gap-1 mt-1">{p.issues.map((i) => <Badge key={i} tone={ISSUE[i]?.tone ?? 'amber'}>{ISSUE[i]?.label ?? i}</Badge>)}</div>}
-                        </div>
-                      </div>
-                    </Td>
-                    <Td className="text-slate-600">{p.category ?? '—'}</Td>
-                    <Td className="text-right tabular-nums font-semibold">{money(p.price)}{p.saleUnit === 'weight' && <span className="text-xs font-normal text-slate-500">/kg</span>}</Td>
-                    <Td className="text-right tabular-nums">{p.available ?? '—'}</Td>
-                    <Td><Badge tone={p.status === 'active' ? 'green' : p.status === 'draft' ? 'grey' : 'red'}>{p.status === 'active' ? 'On sale' : p.status === 'draft' ? 'Draft' : 'Archived'}</Badge> <SampleTag show={p.isSample} /></Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-            <div className="flex items-center justify-between p-3 text-xs text-slate-500">
-              <span>Showing {items.length} of {first?.total ?? items.length}</span>
-              {hasNextPage && <Button size="sm" loading={isFetchingNextPage} onClick={() => void fetchNextPage()}>Show more</Button>}
-            </div>
-          </>
-        )}
-      </Card>
+      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'products', label: 'All products' }, { value: 'shelves', label: 'Homepage shelves' }]} />
+      {tab === 'products' ? <ProductList initialIssue={param && param in ISSUE ? param : ''} onOpen={setEditing} /> : <Shelves />}
 
       {editing && <ProductEditor productId={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onCreated={(id) => setEditing(id)} />}
       <CsvImport
@@ -126,3 +71,74 @@ export default function ProductsScreen({ param }: ScreenProps) {
     </Screen>
   );
 }
+
+const ProductList: React.FC<{ initialIssue: string; onOpen: (id: string) => void }> = ({ initialIssue, onOpen }) => {
+  const lookups = useLookups();
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('active');
+  const [issue, setIssue] = useState(initialIssue);
+  const [category, setCategory] = useState('');
+  const list = usePagedList<ProductRow, ProductList>('admin_list_products', {
+    p_q: q || undefined, p_status: status === 'all' ? undefined : status, p_issue: issue || undefined, p_category: category || undefined,
+  });
+  const c = list.first?.counts;
+  const filtered = !!(q || issue || category || status !== 'active');
+  return (
+    <Card padded={false}>
+      <div className="p-4 space-y-4 border-b border-[#E2E6EB]">
+        <SearchInput value={q} onChange={setQ} placeholder="Search products by name or SKU…" />
+        <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] lg:items-end">
+          <Field label="Show">
+            <Segmented value={status} onChange={setStatus} options={[
+              { value: 'active', label: `On sale${c ? ` (${c.active})` : ''}` }, { value: 'draft', label: `Drafts${c ? ` (${c.draft})` : ''}` },
+              { value: 'archived', label: `Archived${c ? ` (${c.archived})` : ''}` }, { value: 'all', label: 'All' },
+            ]} />
+          </Field>
+          <Field label="Category">
+            <Select value={category} onChange={setCategory} placeholder="All categories" options={(lookups.data?.categories ?? []).map((x) => ({ value: x.slug, label: x.path }))} />
+          </Field>
+          <Field label="Needs fixing">
+            <Select value={issue} onChange={setIssue} placeholder="No filter — show all" options={[
+              { value: 'food_info', label: `Food information missing${c ? ` (${c.foodInfoMissing})` : ''}` },
+              { value: 'no_price', label: `No price${c ? ` (${c.noPrice})` : ''}` },
+              { value: 'no_image', label: 'No photo' },
+              { value: 'low_stock', label: `Running low${c ? ` (${c.lowStock})` : ''}` },
+              { value: 'out_of_stock', label: 'Out of stock' },
+            ]} />
+          </Field>
+        </div>
+        {filtered && <button type="button" className="text-[13px] font-medium text-[#3F4652] underline underline-offset-2 cursor-pointer" onClick={() => { setQ(''); setIssue(''); setCategory(''); setStatus('active'); }}>Clear all filters</button>}
+      </div>
+      {list.isLoading ? <Loading /> : list.error ? <ErrorState error={list.error} text={errorText(list.error)} onRetry={() => void list.refetch()} /> : !list.items.length ? (
+        <Empty icon={<Package className="w-5 h-5" />} title="No products match" text={filtered ? 'Try clearing the search or filters.' : 'Press Add product to add your first one.'} />
+      ) : (
+        <>
+          <Table>
+            <thead><tr><Th>Product</Th><Th>Category</Th><Th className="text-right">Price</Th><Th className="text-right">Available</Th><Th>Status</Th></tr></thead>
+            <tbody>
+              {list.items.map((p) => (
+                <Tr key={p.id} onClick={() => onOpen(p.id)}>
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <Thumb src={p.image?.url} />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate max-w-[22rem]">{p.name}</div>
+                        <div className="text-xs text-slate-500">{p.sku}{p.packSize ? ` · ${p.packSize}` : ''}{p.brand ? ` · ${p.brand}` : ''}</div>
+                        {p.issues.length > 0 && <div className="flex flex-wrap gap-1 mt-1">{p.issues.map((i) => <Badge key={i} tone={ISSUE[i]?.tone ?? 'amber'}>{ISSUE[i]?.label ?? i}</Badge>)}</div>}
+                      </div>
+                    </div>
+                  </Td>
+                  <Td className="text-slate-600">{p.category ?? '—'}</Td>
+                  <Td className="text-right tabular-nums font-semibold">{money(p.price)}{p.saleUnit === 'weight' && <span className="text-xs font-normal text-slate-500">/kg</span>}</Td>
+                  <Td className="text-right tabular-nums">{p.available ?? '—'}</Td>
+                  <Td><Badge tone={p.status === 'active' ? 'green' : p.status === 'draft' ? 'grey' : 'red'}>{p.status === 'active' ? 'On sale' : p.status === 'draft' ? 'Draft' : 'Archived'}</Badge> <SampleTag show={p.isSample} /></Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+          <Pager {...list.pager} />
+        </>
+      )}
+    </Card>
+  );
+};

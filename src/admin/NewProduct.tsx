@@ -1,31 +1,31 @@
 import React, { useMemo, useState } from 'react';
-import { Check, ImagePlus, Package, Plus, Scale } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ImagePlus, Package, Plus, Scale, Trash2 } from 'lucide-react';
 import { rpc } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { errorText, mediaUrl, pence } from './lib';
 import { useLookups } from './lookups';
 import { MediaPicker } from './pickers';
-import { Button, Checkbox, Drawer, Field, Loading, MoneyInput, Notice, NumberInput, SearchInput, Select, TextArea, TextInput, cx } from './ui';
+import { Button, Checkbox, Drawer, Field, Loading, MoneyInput, Notice, SearchInput, Select, TextArea, TextInput, WeightInput, cx } from './ui';
 import { toast } from './toast';
 
 // Adding a product, one question at a time, in the order a shop thinks about it:
-// 1 category → 2 brand → 3 how it is sold → 4 name & pack → 5 price → 6 photo.
+// 1 category → 2 brand → 3 how it is sold → 4 name & pack → 5 price → 6 photos.
 // Missing categories and brands can be added on the spot. The product is created as a draft
 // and opens in the full editor (food information, stock…) when done.
 
-const STEPS = ['Category', 'Brand', 'How it’s sold', 'Name', 'Price', 'Photo'] as const;
+const STEPS = ['Category', 'Brand', 'How it’s sold', 'Name', 'Price', 'Photos'] as const;
 
 interface Draft {
   categoryId: string | null; brandId: string | null; noBrand: boolean;
   saleUnit: 'each' | 'weight'; estimatedWeightGrams: number | null; minWeightGrams: number | null; weightStepGrams: number | null;
   isFood: boolean; isPerishable: boolean; taxCategoryCode: string; ageRestrictionCode: string | null;
   name: string; packSize: string; sku: string; description: string;
-  priceMinor: number | null; rrpMinor: number | null; photo: string | null; photoAlt: string;
+  priceMinor: number | null; rrpMinor: number | null; photos: Array<{ path: string; alt: string }>;
 }
 const START: Draft = {
   categoryId: null, brandId: null, noBrand: false, saleUnit: 'each', estimatedWeightGrams: 500, minWeightGrams: 250, weightStepGrams: 250,
   isFood: true, isPerishable: false, taxCategoryCode: 'zero_rated', ageRestrictionCode: null,
-  name: '', packSize: '', sku: '', description: '', priceMinor: null, rrpMinor: null, photo: null, photoAlt: '',
+  name: '', packSize: '', sku: '', description: '', priceMinor: null, rrpMinor: null, photos: [],
 };
 
 /** VRM-RIC-BASMATI style suggestion from the category and name; staff can change it. */
@@ -66,7 +66,7 @@ export const NewProductWizard: React.FC<{ onClose: () => void; onCreated: (id: s
         taxCategoryCode: d.taxCategoryCode, ageRestrictionCode: d.ageRestrictionCode, description: d.description.trim() || null, rrpMinor: d.rrpMinor,
       } });
       if (d.priceMinor) await rpc('admin_set_price', { p_product_id: p.id, p_price_minor: d.priceMinor, p_reason: 'First price' });
-      if (d.photo) await rpc('admin_set_product_images', { p_product_id: p.id, p_images: [{ path: d.photo, alt: d.photoAlt.trim() || d.name.trim() }] });
+      if (d.photos.length) await rpc('admin_set_product_images', { p_product_id: p.id, p_images: d.photos.map((ph) => ({ path: ph.path, alt: ph.alt.trim() || d.name.trim() })) });
       await qc.invalidateQueries({ queryKey: ['admin'] });
       toast.success('Product created as a draft. Add the food information, then put it on sale.');
       onCreated(p.id);
@@ -91,7 +91,7 @@ export const NewProductWizard: React.FC<{ onClose: () => void; onCreated: (id: s
           return (
             <li key={s}>
               <button type="button" disabled={i > step && !stepOk.slice(0, i).every(Boolean)} onClick={() => setStep(i)}
-                className={cx('w-full text-left rounded-lg border px-2.5 py-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60',
+                className={cx('w-full text-left rounded-md border px-2.5 py-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60',
                   current ? 'bg-[#18181B] border-[#18181B] text-white' : done ? 'bg-white border-[#BFD8CA]' : 'bg-white border-[#D6DBE1]')}>
                 <span className={cx('inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold mr-1.5 align-[1px]',
                   current ? 'bg-[#F5D103] text-[#18181B]' : done ? 'bg-[#2F6B4F] text-white' : 'bg-[#ECEEF1] text-[#4B5563]')}>{done ? <Check className="w-3 h-3" /> : i + 1}</span>
@@ -103,7 +103,7 @@ export const NewProductWizard: React.FC<{ onClose: () => void; onCreated: (id: s
       </ol>
 
       {!L ? <Loading /> : (
-        <section className="bg-white rounded-xl border border-[#D6DBE1] p-4 sm:p-6 space-y-5">
+        <section className="bg-white rounded-lg border border-[#D6DBE1] p-4 sm:p-6 space-y-5">
           {step === 0 && <CategoryStep value={d.categoryId} onChange={(v) => set('categoryId', v)} />}
           {step === 1 && <BrandStep value={d.brandId} noBrand={d.noBrand} onChange={(id, none) => setD((x) => ({ ...x, brandId: id, noBrand: none }))} />}
           {step === 2 && (
@@ -115,9 +115,9 @@ export const NewProductWizard: React.FC<{ onClose: () => void; onCreated: (id: s
               </div>
               {d.saleUnit === 'weight' && (
                 <div className="grid sm:grid-cols-3 gap-3">
-                  <Field label="Typical weight" help="Used for the estimated price."><NumberInput value={d.estimatedWeightGrams} onChange={(v) => set('estimatedWeightGrams', v)} suffix="grams" /></Field>
-                  <Field label="Smallest amount to order"><NumberInput value={d.minWeightGrams} onChange={(v) => set('minWeightGrams', v)} suffix="grams" /></Field>
-                  <Field label="Shoppers choose in steps of"><NumberInput value={d.weightStepGrams} onChange={(v) => set('weightStepGrams', v)} suffix="grams" /></Field>
+                  <Field label="Typical weight" help="Used for the estimated price."><WeightInput value={d.estimatedWeightGrams} onChange={(v) => set('estimatedWeightGrams', v)} /></Field>
+                  <Field label="Smallest amount to order"><WeightInput value={d.minWeightGrams} onChange={(v) => set('minWeightGrams', v)} /></Field>
+                  <Field label="Shoppers choose in steps of"><WeightInput value={d.weightStepGrams} onChange={(v) => set('weightStepGrams', v)} /></Field>
                 </div>
               )}
               <div className="grid sm:grid-cols-2 gap-4 pt-2">
@@ -156,12 +156,12 @@ export const NewProductWizard: React.FC<{ onClose: () => void; onCreated: (id: s
               </div>
             </>
           )}
-          {step === 5 && <PhotoStep path={d.photo} alt={d.photoAlt} name={d.name} onChange={(photo, photoAlt) => setD((x) => ({ ...x, photo, photoAlt }))} />}
+          {step === 5 && <PhotoStep photos={d.photos} name={d.name} onChange={(photos) => set('photos', photos)} />}
         </section>
       )}
 
       {step === 5 && (
-        <section className="bg-white rounded-xl border border-[#D6DBE1] p-4 sm:p-5">
+        <section className="bg-white rounded-lg border border-[#D6DBE1] p-4 sm:p-5">
           <div className="text-[14px] font-semibold mb-2">Ready to create</div>
           <dl className="grid grid-cols-[130px_1fr] gap-y-1.5 text-[14px]">
             <dt className="text-[#5F6B7A]">Category</dt><dd>{category?.path ?? '—'}</dd>
@@ -169,7 +169,7 @@ export const NewProductWizard: React.FC<{ onClose: () => void; onCreated: (id: s
             <dt className="text-[#5F6B7A]">Sold</dt><dd>{d.saleUnit === 'weight' ? 'By weight (per kg)' : 'In a pack'}{d.isFood ? ', food' : ''}{d.isPerishable ? ', fresh' : ''}</dd>
             <dt className="text-[#5F6B7A]">Name</dt><dd>{d.name || '—'} <span className="text-[#7A8594]">({d.packSize || '—'}, {d.sku || '—'})</span></dd>
             <dt className="text-[#5F6B7A]">Price</dt><dd>{d.priceMinor ? pence(d.priceMinor) : 'Add later'}</dd>
-            <dt className="text-[#5F6B7A]">Photo</dt><dd>{d.photo ? 'Added' : 'Add later'}</dd>
+            <dt className="text-[#5F6B7A]">Photos</dt><dd>{d.photos.length ? `${d.photos.length} added` : 'Add later'}</dd>
           </dl>
           {!stepOk.every(Boolean) && <Notice tone="warning">Some steps are not finished. Go back to the ones without a tick.</Notice>}
         </section>
@@ -187,7 +187,7 @@ const Question: React.FC<{ n: number; title: string; hint?: string }> = ({ n, ti
 
 const Choice: React.FC<{ icon: React.ElementType; selected: boolean; onClick: () => void; title: string; text: string }> = ({ icon: Icon, selected, onClick, title, text }) => (
   <button type="button" onClick={onClick} aria-pressed={selected}
-    className={cx('text-left rounded-xl border-2 p-4 cursor-pointer transition-colors', selected ? 'border-[#18181B] bg-[#FBF8EA]' : 'border-[#D6DBE1] bg-white hover:border-[#8B95A3]')}>
+    className={cx('text-left rounded-lg border-2 p-4 cursor-pointer transition-colors', selected ? 'border-[#18181B] bg-[#FBF8EA]' : 'border-[#D6DBE1] bg-white hover:border-[#8B95A3]')}>
     <div className="flex items-center gap-2.5"><Icon className="w-5 h-5" strokeWidth={1.75} /><span className="font-semibold text-[15px]">{title}</span>{selected && <Check className="w-4 h-4 ml-auto text-[#2F6B4F]" />}</div>
     <p className="text-[13px] text-[#5F6B7A] mt-1.5">{text}</p>
   </button>
@@ -200,7 +200,7 @@ const PickList: React.FC<{ items: Array<{ id: string; label: string; sub?: strin
   return (
     <div className="space-y-2">
       <SearchInput value={q} onChange={setQ} placeholder={placeholder} />
-      <div className="max-h-72 overflow-y-auto rounded-lg border border-[#D6DBE1] divide-y divide-[#EEF0F3]">
+      <div className="max-h-72 overflow-y-auto rounded-md border border-[#D6DBE1] divide-y divide-[#EEF0F3]">
         {shown.length === 0 ? <p className="p-3 text-[13.5px] text-[#5F6B7A]">{empty}</p> : shown.map((i) => (
           <button key={i.id} type="button" onClick={() => onPick(i.id)} className={cx('w-full flex items-center gap-2 px-3 py-2.5 text-left text-[14px] cursor-pointer', value === i.id ? 'bg-[#FBF8EA]' : 'hover:bg-[#F6F7F9]')}>
             <span className={cx('w-4 h-4 rounded-full border-2 shrink-0', value === i.id ? 'border-[#18181B] bg-[#18181B] shadow-[inset_0_0_0_3px_white]' : 'border-[#B9C0CA]')} />
@@ -234,7 +234,7 @@ const CategoryStep: React.FC<{ value: string | null; onChange: (id: string) => v
       <Question n={1} title="Which category does it go in?" hint="Shoppers find it here in the shop menu. Choose the most specific one." />
       <PickList items={cats.filter((c) => c.isActive || c.id === value).map((c) => ({ id: c.id, label: c.name, sub: c.path !== c.name ? c.path : undefined }))} value={value} onPick={onChange} placeholder="Search categories…" empty="No category matches. Add a new one below." />
       {adding ? (
-        <div className="rounded-lg border border-[#D6DBE1] bg-[#F6F7F9] p-3 grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+        <div className="rounded-md border border-[#D6DBE1] bg-[#F6F7F9] p-3 grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
           <Field label="New category name"><TextInput value={name} onChange={setName} autoFocus /></Field>
           <Field label="Inside" optional><Select value={parent} onChange={setParent} placeholder="Top level (main category)" options={cats.map((c) => ({ value: c.id, label: c.path }))} /></Field>
           <div className="flex gap-2"><Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button><Button variant="dark" loading={busy} disabled={!name.trim()} onClick={() => void add()}>Add</Button></div>
@@ -265,7 +265,7 @@ const BrandStep: React.FC<{ value: string | null; noBrand: boolean; onChange: (i
       <Choice icon={Package} selected={noBrand} onClick={() => onChange(null, true)} title="No brand" text="Loose produce, or your own unbranded products." />
       <PickList items={(lookups.data?.brands ?? []).filter((b) => b.isActive || b.id === value).map((b) => ({ id: b.id, label: b.name }))} value={noBrand ? null : value} onPick={(id) => onChange(id, false)} placeholder="Search brands…" empty="No brand matches. Add a new one below." />
       {adding ? (
-        <div className="rounded-lg border border-[#D6DBE1] bg-[#F6F7F9] p-3 flex flex-wrap gap-2 items-end">
+        <div className="rounded-md border border-[#D6DBE1] bg-[#F6F7F9] p-3 flex flex-wrap gap-2 items-end">
           <Field label="New brand name" className="flex-1 min-w-[12rem]"><TextInput value={name} onChange={setName} autoFocus /></Field>
           <Button variant="ghost" onClick={() => setAdding(false)}>Cancel</Button><Button variant="dark" loading={busy} disabled={!name.trim()} onClick={() => void add()}>Add</Button>
         </div>
@@ -275,25 +275,36 @@ const BrandStep: React.FC<{ value: string | null; noBrand: boolean; onChange: (i
   );
 };
 
-const PhotoStep: React.FC<{ path: string | null; alt: string; name: string; onChange: (path: string | null, alt: string) => void }> = ({ path, alt, name, onChange }) => {
+const PhotoStep: React.FC<{ photos: Array<{ path: string; alt: string }>; name: string; onChange: (photos: Array<{ path: string; alt: string }>) => void }> = ({ photos, name, onChange }) => {
   const [open, setOpen] = useState(false);
-  const url = mediaUrl(path);
+  const move = (i: number, by: number) => { const n = [...photos]; const [x] = n.splice(i, 1); n.splice(i + by, 0, x); onChange(n); };
   return (
     <>
-      <Question n={6} title="Add a photo" hint="Square photos on a plain background look best. You can add more photos later." />
-      <div className="flex flex-col sm:flex-row gap-4 items-start">
-        <div className="w-40 h-40 rounded-xl border border-[#D6DBE1] bg-[#F6F7F9] flex items-center justify-center overflow-hidden shrink-0">
-          {url ? <img src={url} alt="" className="w-full h-full object-contain" /> : <ImagePlus className="w-8 h-8 text-[#B9C0CA]" />}
-        </div>
-        <div className="flex-1 space-y-3 w-full">
-          <div className="flex gap-2">
-            <Button variant={url ? 'outline' : 'dark'} onClick={() => setOpen(true)}>{url ? 'Choose a different photo' : 'Choose or upload a photo'}</Button>
-            {url && <Button variant="ghost" onClick={() => onChange(null, alt)}>Remove</Button>}
+      <Question n={6} title="Add photos" hint="Add as many as you like. The first one is the main photo. Square photos on a plain background look best." />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {photos.map((ph, i) => (
+          <div key={`${ph.path}-${i}`} className={cx('rounded-md border bg-white overflow-hidden', i === 0 ? 'border-[#18181B]' : 'border-[#D6DBE1]')}>
+            <div className="aspect-square bg-[#F6F7F9] flex items-center justify-center relative">
+              <img src={mediaUrl(ph.path) ?? ''} alt="" className="w-full h-full object-contain" />
+              {i === 0 && <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-[#18181B] text-[#F5D103] text-[11px] font-semibold">Main photo</span>}
+            </div>
+            <div className="p-2 space-y-1.5">
+              <TextInput value={ph.alt} onChange={(v) => onChange(photos.map((x, j) => (j === i ? { ...x, alt: v } : x)))} placeholder={name ? `Describe: e.g. ${name}` : 'Describe the photo'} className="h-8 text-[13px]" />
+              <div className="flex justify-between">
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" aria-label="Move earlier" disabled={i === 0} onClick={() => move(i, -1)}><ArrowLeft className="w-3.5 h-3.5" /></Button>
+                  <Button size="sm" variant="ghost" aria-label="Move later" disabled={i === photos.length - 1} onClick={() => move(i, 1)}><ArrowRight className="w-3.5 h-3.5" /></Button>
+                </div>
+                <Button size="sm" variant="ghost" aria-label="Remove photo" onClick={() => onChange(photos.filter((_, j) => j !== i))}><Trash2 className="w-3.5 h-3.5 text-[#A63A3A]" /></Button>
+              </div>
+            </div>
           </div>
-          <Field label="Describe the photo" optional help="For blind shoppers and Google."><TextInput value={alt} onChange={(v) => onChange(path, v)} placeholder={name ? `e.g. ${name}` : ''} /></Field>
-        </div>
+        ))}
+        <button type="button" onClick={() => setOpen(true)} className="aspect-square rounded-md border-2 border-dashed border-[#B9C0CA] bg-[#F6F7F9] hover:border-[#18181B] flex flex-col items-center justify-center gap-2 text-[13.5px] font-medium text-[#3F4652] cursor-pointer">
+          <ImagePlus className="w-7 h-7 text-[#7A8594]" />{photos.length ? 'Add another photo' : 'Choose or upload a photo'}
+        </button>
       </div>
-      <MediaPicker open={open} onClose={() => setOpen(false)} folder="products" title="Choose a product photo" onPick={(p) => onChange(p, alt)} />
+      <MediaPicker open={open} onClose={() => setOpen(false)} folder="products" title="Choose a product photo" onPick={(p) => onChange([...photos, { path: p, alt: '' }])} />
     </>
   );
 };

@@ -4,7 +4,7 @@ import type { ScreenProps } from '../AdminApp';
 import type { Money } from '../../types/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, money, pence, date, dateTime } from '../lib';
-import { Badge, Button, Card, Checkbox, Chips, ConfirmButton, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, MoneyInput, NumberInput, SampleTag, Screen, Select, Table, Tabs, Td, TextArea, TextInput, Th, Tr } from '../ui';
+import { Badge, Button, Card, Checkbox, Chips, ConfirmButton, Drawer, Empty, ErrorState, Facts, Field, Loading, Modal, MoneyInput, NumberInput, SampleTag, Screen, Select, Table, Tabs, Td, TextArea, TextInput, Th, Tr, usePager } from '../ui';
 import { ProductPicker } from '../pickers';
 import { toast } from '../toast';
 
@@ -44,6 +44,7 @@ const Orders: React.FC = () => {
   const canEdit = hasPermission('inventory');
   const [status, setStatus] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Po[]>('admin_list_purchase_orders', { p_status: status || undefined });
+  const { pageItems: poPage, pager: poPager } = usePager(data, 25);
   const { run, busy } = useAction();
   const [open, setOpen] = useState<Po | 'new' | null>(null);
   const live = open && open !== 'new' ? data?.find((p) => p.id === open.id) ?? open : open;
@@ -66,7 +67,7 @@ const Orders: React.FC = () => {
           <Table>
             <thead><tr><Th>Order</Th><Th>Supplier</Th><Th>Status</Th><Th className="text-right">Value</Th><Th>Expected</Th><Th>Created</Th></tr></thead>
             <tbody>
-              {data.map((p) => (
+              {poPage.map((p) => (
                 <Tr key={p.id} onClick={() => setOpen(p)}>
                   <Td className="font-semibold">{p.number} <SampleTag show={p.isSample} /></Td>
                   <Td>{p.supplier.name}<div className="text-xs text-slate-500">{p.lines.length} products</div></Td>
@@ -79,6 +80,7 @@ const Orders: React.FC = () => {
             </tbody>
           </Table>
         )}
+        {poPager}
       </Card>
       {live && <PoDrawer po={live === 'new' ? null : live} onClose={() => setOpen(null)} onCreated={(p) => setOpen(p)} canEdit={canEdit} />}
     </>
@@ -185,6 +187,7 @@ const Suppliers: React.FC = () => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('inventory');
   const { data, isLoading, error, refetch } = useAdminQuery<Supplier[]>('admin_list_suppliers');
+  const { pageItems: supPage, pager: supPager } = usePager(data, 25);
   const [editing, setEditing] = useState<Partial<Supplier> | null>(null);
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
@@ -193,7 +196,7 @@ const Suppliers: React.FC = () => {
       <Table>
         <thead><tr><Th>Supplier</Th><Th>Contact</Th><Th className="text-right">Products</Th><Th className="text-right">Open orders</Th><Th /></tr></thead>
         <tbody>
-          {(data ?? []).map((s) => (
+          {supPage.map((s) => (
             <Tr key={s.id} onClick={canEdit ? () => setEditing(s) : undefined}>
               <Td><div className="font-medium">{s.name} <SampleTag show={s.isSample} /></div><div className="text-xs text-slate-500">{s.category ?? ''}{s.leadTimeDays ? ` · delivers in ${s.leadTimeDays} day(s)` : ''}</div></Td>
               <Td className="text-xs">{s.contactPerson && <div>{s.contactPerson}</div>}<div className="text-slate-500">{s.email}{s.phone ? ` · ${s.phone}` : ''}</div>{!s.contactsVerified && (s.email || s.phone) && <Badge tone="amber">Not checked</Badge>}</Td>
@@ -204,6 +207,7 @@ const Suppliers: React.FC = () => {
           ))}
         </tbody>
       </Table>
+      {supPager}
       {editing && <SupplierForm initial={editing} onClose={() => setEditing(null)} />}
     </Card>
   );

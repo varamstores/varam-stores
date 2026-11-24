@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+// (usePagedList resets to page 1 when the filters change)
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import { rpc, isApiError } from '../lib/api';
 import { supabase, STORAGE_BUCKET } from '../lib/supabase';
@@ -32,6 +33,44 @@ export function usePaged<T, P extends Paged<T> = Paged<T>>(fn: string, params: R
   });
   const first = q.data?.pages[0];
   return { ...q, first, items: q.data?.pages.flatMap((p) => p.items) ?? [] };
+}
+
+/**
+ * A list shown one page (50) at a time with page numbers. Pages come from the database in order
+ * (each page tells us where the next starts), so jumping ahead loads the pages in between.
+ */
+export function usePagedList<T, P extends Paged<T> = Paged<T>>(fn: string, params: Record<string, unknown>, options: { refetchInterval?: number } = {}) {
+  const SIZE = 50;
+  const q = useInfiniteQuery({
+    queryKey: ['admin', fn, params, 'pages'],
+    queryFn: ({ pageParam }) => rpc<P>(fn, { ...params, p_limit: SIZE, p_cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last: P) => last.nextCursor ?? undefined,
+    staleTime: 15_000,
+    refetchInterval: options.refetchInterval,
+  });
+  const [page, setPage] = useState(0);
+  const key = JSON.stringify(params);
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) { setLastKey(key); setPage(0); }
+  const pages = q.data?.pages ?? [];
+  const first = pages[0];
+  const total = first?.total ?? 0;
+  const shown = Math.min(page, Math.max(0, pages.length - 1));
+  const goTo = async (p: number) => {
+    let loaded = pages.length;
+    let more = q.hasNextPage;
+    while (loaded <= p && more) {
+      const r = await q.fetchNextPage();
+      loaded = r.data?.pages.length ?? loaded;
+      more = r.hasNextPage;
+    }
+    setPage(Math.min(p, loaded - 1));
+  };
+  return {
+    ...q, first, total, items: pages[shown]?.items ?? [],
+    pager: { page: shown, pageCount: Math.max(1, Math.ceil(total / SIZE)), onPage: (p: number) => void goTo(p), total, size: SIZE, loading: q.isFetchingNextPage },
+  };
 }
 
 /** Plain-English message for a failed call. Database hints are written for staff, so they are shown as they are. */

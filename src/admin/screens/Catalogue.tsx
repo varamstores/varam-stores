@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAction, useAdminQuery, errorText, mediaUrl } from '../lib';
-import { Badge, Button, Card, Checkbox, ConfirmButton, Empty, ErrorState, Field, Loading, Modal, Screen, SearchInput, Select, Table, Tabs, Td, TextInput, Th, Thumb, Tr } from '../ui';
+import { Badge, Button, Card, Checkbox, ConfirmButton, Empty, ErrorState, Field, Loading, Modal, SearchInput, Select, Table, Td, TextInput, Th, Thumb, Tr, usePager } from '../ui';
 import { ImageField, ProductPicker } from '../pickers';
 
 interface Category {
@@ -13,29 +12,10 @@ interface Category {
 interface Brand { id: string; name: string; slug: string; logo: { url: string } | null; logoPath: string | null; tagline: string | null; isActive: boolean; isPopular: boolean; productCount: number; marqueePosition: number | null }
 interface Shelf { code: string; title: string; isActive: boolean; products: Array<{ id: string; name: string; image: { url: string } | null; status: string }> }
 
-export default function CatalogueScreen(_: ScreenProps) {
-  const [tab, setTab] = useState('categories');
-  return (
-    <Screen
-      title="Categories & brands"
-      intro="How products are grouped in the shop, the brands you sell, and the product shelves on the homepage."
-      guide={<ul>
-        <li><b>Categories</b> appear in the shop menu and filters. Use the arrows to change their order. A category can sit inside another one.</li>
-        <li><b>Brands</b> marked “popular” appear in the shop’s brand filter. The <b>logo strip</b> is the moving row of brand logos on the homepage.</li>
-        <li><b>Shelves</b> are the rows of products on the homepage (for example “Fresh picks”). Choose which products appear and in what order. Which shelves show, and their headings, are set in Website content → Home.</li>
-      </ul>}
-    >
-      <Tabs value={tab} onChange={setTab} tabs={[{ value: 'categories', label: 'Categories' }, { value: 'brands', label: 'Brands' }, { value: 'strip', label: 'Brand logo strip' }, { value: 'shelves', label: 'Homepage shelves' }]} />
-      {tab === 'categories' && <Categories />}
-      {tab === 'brands' && <Brands />}
-      {tab === 'strip' && <LogoStrip />}
-      {tab === 'shelves' && <Shelves />}
-    </Screen>
-  );
-}
+// The pieces used by the Categories, Brands and Products screens.
 
 // ── categories ──────────────────────────────────────────────────────────────────────────────────
-const Categories: React.FC = () => {
+export const Categories: React.FC = () => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('inventory');
   const { data, isLoading, error, refetch } = useAdminQuery<Category[]>('admin_list_categories');
@@ -58,6 +38,7 @@ const Categories: React.FC = () => {
   const rows: Array<{ c: Category; depth: number; index: number; count: number }> = [];
   const walk = (parent: string | null, depth: number) => (byParent.get(parent) ?? []).forEach((c, index, arr) => { rows.push({ c, depth, index, count: arr.length }); walk(c.id, depth + 1); });
   walk(null, 0);
+  const { pageItems, pager } = usePager(rows, 30);
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
@@ -66,7 +47,7 @@ const Categories: React.FC = () => {
       <Table>
         <thead><tr><Th>Category</Th><Th className="text-right">Products</Th><Th>Shown</Th><Th /></tr></thead>
         <tbody>
-          {rows.map(({ c, depth, index, count }) => (
+          {pageItems.map(({ c, depth, index, count }) => (
             <Tr key={c.id}>
               <Td>
                 <div className="flex items-center gap-3" style={{ paddingLeft: depth * 24 }}>
@@ -88,6 +69,7 @@ const Categories: React.FC = () => {
           ))}
         </tbody>
       </Table>
+      {pager}
       {editing && <CategoryForm initial={editing} all={data ?? []} onClose={() => setEditing(null)} />}
     </Card>
   );
@@ -140,12 +122,13 @@ const CategoryForm: React.FC<{ initial: Partial<Category>; all: Category[]; onCl
 };
 
 // ── brands ──────────────────────────────────────────────────────────────────────────────────────
-const Brands: React.FC = () => {
+export const Brands: React.FC = () => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('inventory');
   const [q, setQ] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Brand[]>('admin_list_brands', { p_q: q || undefined });
   const [editing, setEditing] = useState<Partial<Brand> | null>(null);
+  const { pageItems, pager } = usePager(data, 25);
   if (error) return <ErrorState error={error} text={errorText(error)} onRetry={() => void refetch()} />;
   return (
     <Card padded={false}>
@@ -153,11 +136,11 @@ const Brands: React.FC = () => {
         <SearchInput value={q} onChange={setQ} placeholder="Search brands…" className="flex-1" />
         {canEdit && <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setEditing({ isActive: true })}>Add brand</Button>}
       </div>
-      {isLoading ? <Loading /> : !data?.length ? <Empty title="No brands found" /> : (
+      {isLoading ? <Loading /> : !data?.length ? <Empty title="No brands found" /> : (<>
         <Table>
           <thead><tr><Th>Brand</Th><Th className="text-right">Products</Th><Th>Shown</Th><Th /></tr></thead>
           <tbody>
-            {data.map((b) => (
+            {pageItems.map((b) => (
               <Tr key={b.id} onClick={canEdit ? () => setEditing(b) : undefined}>
                 <Td><div className="flex items-center gap-3"><Thumb src={b.logo?.url} size={36} /><div><div className="font-medium">{b.name}</div>{b.tagline && <div className="text-xs text-slate-500">{b.tagline}</div>}</div></div></Td>
                 <Td className="text-right tabular-nums">{b.productCount}</Td>
@@ -167,7 +150,8 @@ const Brands: React.FC = () => {
             ))}
           </tbody>
         </Table>
-      )}
+        {pager}
+      </>)}
       {editing && <BrandForm initial={editing} onClose={() => setEditing(null)} />}
     </Card>
   );
@@ -194,7 +178,7 @@ const BrandForm: React.FC<{ initial: Partial<Brand>; onClose: () => void }> = ({
 };
 
 // ── logo strip ──────────────────────────────────────────────────────────────────────────────────
-const LogoStrip: React.FC = () => {
+export const LogoStrip: React.FC = () => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('content');
   const { data, isLoading } = useAdminQuery<Brand[]>('admin_list_brands');
@@ -211,7 +195,7 @@ const LogoStrip: React.FC = () => {
         {current.map((id, i) => {
           const b = brand(id);
           return (
-            <li key={id} className="flex items-center gap-3 rounded-lg border border-[#E2E8F0] p-2">
+            <li key={id} className="flex items-center gap-3 rounded-md border border-[#E2E8F0] p-2">
               <span className="w-6 text-xs text-slate-400 tabular-nums">{i + 1}</span>
               <Thumb src={b?.logo?.url} size={32} />
               <span className="flex-1 text-sm font-medium">{b?.name ?? 'Unknown'}{!b?.logoPath && <span className="text-xs text-[#7A4A0F]"> · no logo</span>}</span>
@@ -235,7 +219,7 @@ const LogoStrip: React.FC = () => {
 };
 
 // ── homepage shelves ────────────────────────────────────────────────────────────────────────────
-const Shelves: React.FC = () => {
+export const Shelves: React.FC = () => {
   const { hasPermission } = useAuth();
   const canEdit = hasPermission('content');
   const { data, isLoading, error, refetch } = useAdminQuery<Shelf[]>('admin_list_collections');
@@ -278,7 +262,7 @@ const ShelfForm: React.FC<{ initial: Shelf; onClose: () => void }> = ({ initial,
       <Field label="Add products"><ProductPicker onPick={(p) => setItems((cur) => (cur.some((x) => x.id === p.id) ? cur : [...cur, { id: p.id, name: p.name, image: p.image, status: p.status }]))} exclude={items.map((x) => x.id)} activeOnly /></Field>
       <ul className="space-y-1.5">
         {items.map((p, i) => (
-          <li key={p.id} className="flex items-center gap-2 rounded-lg border border-[#E2E8F0] p-2">
+          <li key={p.id} className="flex items-center gap-2 rounded-md border border-[#E2E8F0] p-2">
             <span className="w-5 text-xs text-slate-400">{i + 1}</span>
             <Thumb src={p.image?.url ?? mediaUrl(null)} size={32} />
             <span className="flex-1 text-sm truncate">{p.name}{p.status !== 'active' && <span className="text-xs text-[#7A4A0F]"> · not on sale (hidden)</span>}</span>

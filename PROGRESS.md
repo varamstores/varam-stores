@@ -132,6 +132,7 @@ Details: [backend/docs/PLAN.md](backend/docs/PLAN.md).
 7. Rotate the DB password and Supabase access token (they were pasted in chat); later change the test@gmail.com login
 
 ## Log
+- **2026-11-24**: Store portal reworked for non-technical staff: one order board (New → Picking → Ready to send → On the road → Delivered) with one next-step button per order; numbered shop set-up (1 Categories → 2 Brands → 3 Products → 4 Stock → 5 Suppliers) with a Home checklist; add-product in six steps (several photos); grams/kilos everywhere; page numbers on every list; clean custom drop-downs; simpler Emails (wording only, Resend); a Guide covering every screen; muted professional palette. Fix: products sold by weight could not be created (0031). 32 migrations, 403 tests green.
 - **2026-11-23 (later)**: Site live on Vercel (blank page fixed: public Supabase settings now ship with the build; clean URLs fixed). New store portal live at /admin with every screen wired to Postgres; mock portal and mock data deleted.
 - **2026-11-23**: All admin functions in the database: catalogue + CSV, stock + suppliers + purchase orders (automatic low-stock drafts), customers, reviews, emails, offers & codes, delivery set-up, loyalty, staff invitations & roles, settings with plain-English help, company & VAT, audit log. 28 migrations, 399 tests green, lint clean.
 - **2026-11-22 (later)**: Order management end to end (picking → capture → dispatch → delivery → refunds) + Our Story from the CMS. 24 migrations, 304 tests green.

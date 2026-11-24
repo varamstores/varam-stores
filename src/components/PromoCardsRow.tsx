@@ -15,7 +15,7 @@ export const PromoCardsRow: React.FC = () => {
   return (
     <section id="promotions" className="py-10 sm:py-14 bg-white">
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
-        <div className={`grid grid-cols-1 gap-6 lg:gap-7 ${cards.length === 3 ? 'md:grid-cols-3' : cards.length === 2 ? 'md:grid-cols-2' : ''}`}>
+        <div className={`grid grid-cols-1 gap-6 lg:gap-7 ${cards.length === 3 ? 'md:grid-cols-3' : cards.length > 3 ? 'md:grid-cols-2 lg:grid-cols-3' : cards.length === 2 ? 'md:grid-cols-2' : ''}`}>
           {cards.map((card, i) => {
             const light = card.theme === 'light';
             const code = card.code?.trim();

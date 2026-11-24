@@ -79,7 +79,7 @@ export const CsvImport: React.FC<{
       {applied ? <Notice tone="success">{summary(applied, true)}</Notice> : check && (check.errors.length ? (
         <>
           <Notice tone="danger">Nothing was changed. Fix these {check.errors.length} problem{check.errors.length === 1 ? '' : 's'} in the spreadsheet, save it as CSV again and choose it again.</Notice>
-          <Table className="max-h-80 overflow-y-auto border border-[#E2E8F0] rounded-lg">
+          <Table className="max-h-80 overflow-y-auto border border-[#E2E8F0] rounded-md">
             <thead><tr><Th>Row</Th><Th>Column</Th><Th>Problem</Th></tr></thead>
             <tbody>{check.errors.slice(0, 300).map((e, i) => <tr key={i}><Td>{e.row}</Td><Td>{e.field}</Td><Td>{e.message}</Td></tr>)}</tbody>
           </Table>

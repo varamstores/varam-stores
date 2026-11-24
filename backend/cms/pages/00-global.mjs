@@ -208,7 +208,7 @@ export default page('global', 'Header, footer & messages', {
       { image: img('/payments/paypal.svg', 'PayPal'), label: 'PayPal' },
       { image: img('/payments/discover.svg', 'Discover'), label: 'Discover' },
       { image: img('/payments/diners-club.svg', 'Diners Club'), label: 'Diners Club' },
-    ], { maxItems: 12, help: 'Only show methods your Stripe account actually accepts.' }),
+    ], { maxItems: 24, help: 'Only show methods your Stripe account actually accepts.' }),
     text('payments_aria', 'Payment logos description (screen readers)', 'Accepted payment methods', { max: 60 }),
   ]),
 

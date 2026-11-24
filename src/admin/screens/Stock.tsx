@@ -3,7 +3,7 @@ import { Boxes, Download, Upload } from 'lucide-react';
 import type { ScreenProps } from '../AdminApp';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminQuery, errorText, downloadText, londonToday, pence, date } from '../lib';
-import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, Modal, Screen, SearchInput, Table, Td, Th, Thumb, Tr } from '../ui';
+import { Badge, Button, Card, Chips, Empty, ErrorState, Loading, Modal, Screen, SearchInput, Table, Td, Th, Thumb, Tr, usePager } from '../ui';
 import { AdjustStock, StockHistory, StockLevels } from '../StockForms';
 import { CsvImport } from '../CsvImport';
 
@@ -18,6 +18,7 @@ export default function StockScreen({ param }: ScreenProps) {
   const [filter, setFilter] = useState(param === 'low' || param === 'out' ? param : 'all');
   const [q, setQ] = useState('');
   const { data, isLoading, error, refetch } = useAdminQuery<Row[]>('admin_list_inventory', { p_filter: filter, p_q: q || undefined });
+  const { pageItems, pager } = usePager(data, 25);
   const [adjust, setAdjust] = useState<Row | null>(null);
   const [levels, setLevels] = useState<Row | null>(null);
   const [history, setHistory] = useState<Row | null>(null);
@@ -54,7 +55,7 @@ export default function StockScreen({ param }: ScreenProps) {
           <Table>
             <thead><tr><Th>Product</Th><Th className="text-right">In stock</Th><Th className="text-right">Held</Th><Th className="text-right">Free to sell</Th><Th className="text-right">Reorder at</Th><Th className="text-right">On order</Th><Th>Supplier</Th><Th /></tr></thead>
             <tbody>
-              {data.map((r) => (
+              {pageItems.map((r) => (
                 <Tr key={r.productId}>
                   <Td>
                     <div className="flex items-center gap-3">
@@ -82,6 +83,7 @@ export default function StockScreen({ param }: ScreenProps) {
             </tbody>
           </Table>
         )}
+        {pager}
       </Card>
       {adjust && <AdjustStock productId={adjust.productId} name={adjust.name} onHand={adjust.onHand} onClose={() => setAdjust(null)} />}
       {levels && <StockLevels productId={levels.productId} name={levels.name} reorderPoint={levels.reorderPoint} optimalStock={levels.optimalStock} unitCostMinor={levels.unitCostMinor} onClose={() => setLevels(null)} />}

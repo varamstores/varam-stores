@@ -54,7 +54,7 @@ const Areas: React.FC = () => {
       {!data?.length ? <Card><Empty icon={<MapPin className="w-5 h-5" />} title="No delivery areas yet" /></Card> : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
           {data.map((z) => (
-            <button key={z.id} type="button" onClick={() => setOpen(z.id)} className="text-left bg-white rounded-xl border border-[#E2E8F0] p-4 hover:border-[#18181B] cursor-pointer space-y-2">
+            <button key={z.id} type="button" onClick={() => setOpen(z.id)} className="text-left bg-white rounded-lg border border-[#E2E8F0] p-4 hover:border-[#18181B] cursor-pointer space-y-2">
               <div className="flex items-center justify-between gap-2"><span className="font-bold">{z.name}</span><span className="flex gap-1">{!z.isActive && <Badge tone="red">Off</Badge>}{z.isPopular && <Badge tone="yellow">Popular</Badge>}</span></div>
               <div className="text-xs text-slate-500">Shoppers see “{z.label}”</div>
               <div className="flex flex-wrap gap-1">{z.postcodes.slice(0, 12).map((p) => <span key={p} className="px-1.5 py-0.5 rounded bg-slate-100 text-[11px] font-mono">{p}</span>)}{z.postcodes.length > 12 && <span className="text-xs text-slate-500">+{z.postcodes.length - 12}</span>}</div>
@@ -206,7 +206,7 @@ const Slots: React.FC<{ zone: Zone; canEdit: boolean }> = ({ zone, canEdit }) =>
         <Card key={day} title={new Date(`${day}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {slots.map((s) => (
-              <div key={s.id} className={`rounded-lg border p-3 ${s.status === 'closed' ? 'bg-slate-50 border-slate-200' : 'border-[#E2E8F0]'}`}>
+              <div key={s.id} className={`rounded-md border p-3 ${s.status === 'closed' ? 'bg-slate-50 border-slate-200' : 'border-[#E2E8F0]'}`}>
                 <div className="flex items-center justify-between"><span className="font-semibold">{s.startLocal}–{s.endLocal}</span>{s.status === 'closed' ? <Badge tone="red">Closed</Badge> : s.booked >= s.capacity ? <Badge tone="amber">Full</Badge> : <Badge tone="green">Open</Badge>}</div>
                 <div className="text-xs text-slate-500">{s.serviceLabel ?? ''}</div>
                 <div className="h-1.5 bg-slate-100 rounded-full mt-2"><div className="h-full bg-[#18181B] rounded-full" style={{ width: `${Math.min(100, (s.booked / Math.max(1, s.capacity)) * 100)}%` }} /></div>

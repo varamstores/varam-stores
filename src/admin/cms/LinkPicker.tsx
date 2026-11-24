@@ -160,10 +160,8 @@ export const DestinationPicker: React.FC<{ value: string; onChange: (href: strin
     <div className="space-y-2">
       <Field label={label}>
         <div className="relative">
-          <select value={dest} onChange={(e) => update(e.target.value as Dest, '')} className="w-full h-10 px-3 pr-9 rounded-lg border border-[#E2E8F0] bg-white text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#F5D103] appearance-none">
-            {groups.map((g) => <optgroup key={g} label={g}>{DESTINATIONS.filter((d) => d.group === g).map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}</optgroup>)}
-          </select>
-          <ArrowRight className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" />
+          <Select value={dest} onChange={(v) => update(v as Dest, '')} searchable={false}
+            options={groups.flatMap((g) => DESTINATIONS.filter((d) => d.group === g).map((d) => ({ value: d.value, label: d.label, group: g })))} />
         </div>
       </Field>
       {dest === 'category' && <Field label="Which category?"><Select value={arg} onChange={(v) => update(dest, v)} placeholder="Choose…" options={(L?.categories ?? []).filter((c) => c.isActive).map((c) => ({ value: c.slug, label: c.path }))} /></Field>}
@@ -177,7 +175,7 @@ export const DestinationPicker: React.FC<{ value: string; onChange: (href: strin
       {dest === 'phone' && <Field label="Phone number"><TextInput type="tel" value={arg} onChange={(v) => update(dest, v)} placeholder="e.g. 01707 123456" /></Field>}
       {dest === 'other' && <Field label="Address" help="A path in this shop starting with /, e.g. /shop?category=rice-millets&sale=1"><TextInput value={arg} onChange={(v) => update(dest, v)} /></Field>}
       {dest === 'product' && (arg
-        ? <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm"><span className="truncate">{productName ?? arg}</span><Button size="sm" variant="ghost" onClick={() => update(dest, '')}>Change</Button></div>
+        ? <div className="flex items-center justify-between gap-2 rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm"><span className="truncate">{productName ?? arg}</span><Button size="sm" variant="ghost" onClick={() => update(dest, '')}>Change</Button></div>
         : <ProductPicker activeOnly onPick={(p) => update(dest, p.slug)} placeholder="Find the product…" />)}
       <div className={`flex items-start gap-1.5 text-xs rounded-md px-2.5 py-1.5 ${href ? 'bg-[#EAF3EE] text-[#245740]' : 'bg-[#F8F0E3] text-[#7A4A0F]'}`}>
         <ArrowRight className="w-3.5 h-3.5 mt-px shrink-0" />
@@ -191,7 +189,7 @@ export const DestinationPicker: React.FC<{ value: string; onChange: (href: strin
 export const LinkPicker: React.FC<{ value: { label: string; href: string } | null | undefined; onChange: (v: { label: string; href: string }) => void; maxLength?: number }> = ({ value, onChange, maxLength }) => {
   const v = value ?? { label: '', href: '' };
   return (
-    <div className="grid sm:grid-cols-2 gap-3 rounded-lg border border-[#E2E8F0] bg-slate-50/60 p-3">
+    <div className="grid sm:grid-cols-2 gap-3 rounded-md border border-[#E2E8F0] bg-slate-50/60 p-3">
       <Field label="What should the button say?" help={maxLength ? `${v.label.length}/${maxLength}` : undefined}>
         <TextInput value={v.label} maxLength={maxLength} onChange={(label) => onChange({ ...v, label })} placeholder="e.g. Shop groceries" />
       </Field>
